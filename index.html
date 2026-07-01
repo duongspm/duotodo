@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Notes — To-do &amp; Notes</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-mark">✎</div>
+      <h1>Notes</h1>
+      <p class="login-sub">Ghi chú &amp; việc cần làm của bạn, ở bất cứ đâu.</p>
+      <button id="googleLoginBtn" class="btn btn-primary btn-google">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.9A9 9 0 0 0 0 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .9 4.97l3.05 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+        Đăng nhập bằng Google
+      </button>
+      <p class="login-note">Dữ liệu của bạn được lưu riêng tư trên Firebase, chỉ tài khoản của bạn truy cập được.</p>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app" class="app hidden">
+    <button id="sidebarToggle" class="sidebar-toggle" aria-label="Đóng/mở sidebar">☰</button>
+
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-user">
+        <img id="userAvatar" class="user-avatar" alt="">
+        <span id="userName" class="user-name"></span>
+        <button id="logoutBtn" class="icon-btn" title="Đăng xuất">⎋</button>
+      </div>
+
+      <button id="newRootPageBtn" class="sidebar-new-btn">
+        <span class="plus">＋</span> Trang mới
+      </button>
+
+      <div class="sidebar-label">Trang của bạn</div>
+      <ul id="pageTree" class="page-tree"></ul>
+
+      <div id="sidebarEmpty" class="sidebar-empty hidden">Chưa có trang nào. Bấm "Trang mới" để bắt đầu.</div>
+    </aside>
+
+    <main id="mainContent" class="main-content">
+      <div id="emptyState" class="empty-state">
+        <div class="empty-state-mark">✎</div>
+        <p>Chọn một trang bên trái, hoặc tạo trang mới.</p>
+      </div>
+
+      <div id="pageView" class="page-view hidden">
+        <div class="page-header">
+          <button id="pageIconBtn" class="page-icon-btn" title="Đổi biểu tượng">📄</button>
+          <div id="pageTitle" class="page-title" contenteditable="true" data-placeholder="Không có tiêu đề"></div>
+          <button id="deletePageBtn" class="icon-btn delete-page-btn" title="Xóa trang">🗑</button>
+        </div>
+
+        <div id="blocksContainer" class="blocks-container"></div>
+
+        <div class="add-block-wrap">
+          <button id="addBlockBtn" class="add-block-btn">＋ Thêm khối</button>
+          <div id="addBlockMenu" class="add-block-menu hidden">
+            <button data-type="text">📝 Văn bản</button>
+            <button data-type="heading">🔠 Tiêu đề</button>
+            <button data-type="todo">☑️ Việc cần làm</button>
+            <button data-type="image">🖼 Hình ảnh</button>
+            <button data-type="link">🔗 Liên kết</button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Hidden file input for image upload -->
+  <input type="file" id="imageFileInput" accept="image/*" class="hidden" />
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
