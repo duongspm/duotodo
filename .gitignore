@@ -1,0 +1,13 @@
+# Bỏ qua đích danh 1 file cụ thể
+# config.json
+# notall.txt
+
+# Bỏ qua toàn bộ các file có đuôi .txt ở bất kỳ đâu
+# *.txt
+
+# Bỏ qua nguyên một thư mục (và tất cả những gì bên trong nó)
+bk/
+data/
+*.txt
+.vscode/settings.json
+.vscode/

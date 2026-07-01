@@ -4,8 +4,8 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot,
-  query, orderBy, writeBatch, serverTimestamp, getDocs
+  getFirestore, collection, collectionGroup, doc, addDoc, updateDoc, deleteDoc, onSnapshot,
+  query, where, orderBy, writeBatch, serverTimestamp, getDocs, increment
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getStorage, ref, uploadBytes, getDownloadURL, deleteObject
@@ -41,6 +41,21 @@ const addBlockBtn = $("addBlockBtn");
 const addBlockMenu = $("addBlockMenu");
 const imageFileInput = $("imageFileInput");
 const toastEl = $("toast");
+const confirmModal = $("confirmModal");
+const confirmTitle = $("confirmTitle");
+const confirmMessage = $("confirmMessage");
+const confirmCancelBtn = $("confirmCancelBtn");
+const confirmOkBtn = $("confirmOkBtn");
+const offlineBanner = $("offlineBanner");
+const todayNavBtn = $("todayNavBtn");
+const todayView = $("todayView");
+const todayGroups = $("todayGroups");
+const todayEmpty = $("todayEmpty");
+const sidebarSkeleton = $("sidebarSkeleton");
+const pageSkeleton = $("pageSkeleton");
+const toastMessage = $("toastMessage");
+const toastActionBtn = $("toastActionBtn");
+const emptyStateNewBtn = $("emptyStateNewBtn");
 
 /* ---------------- State ---------------- */
 let currentUser = null;
@@ -49,7 +64,11 @@ let expandedIds = new Set();
 let currentPageId = null;
 let unsubPages = null;
 let unsubBlocks = null;
+let unsubToday = null;
 let pendingImageBlockId = null;
+let pagesFirstLoadDone = false;
+let pendingPageDeletions = new Map(); // pageId -> { timeoutId, title }
+let currentView = "empty"; // 'empty' | 'page' | 'today'
 
 /* ---------------- Utils ---------------- */
 function debounce(fn, wait = 500) {
@@ -64,12 +83,63 @@ function escapeHtml(str = "") {
   d.textContent = str;
   return d.innerHTML;
 }
-function showToast(msg) {
-  toastEl.textContent = msg;
+function showToast(msg, { actionLabel = null, onAction = null, duration = 2200 } = {}) {
+  toastMessage.textContent = msg;
+  toastActionBtn.onclick = null;
+  if (actionLabel && onAction) {
+    toastActionBtn.textContent = actionLabel;
+    toastActionBtn.classList.remove("hidden");
+    toastActionBtn.onclick = () => {
+      onAction();
+      toastEl.classList.add("hidden");
+      clearTimeout(showToast._t);
+    };
+  } else {
+    toastActionBtn.classList.add("hidden");
+  }
   toastEl.classList.remove("hidden");
   clearTimeout(showToast._t);
-  showToast._t = setTimeout(() => toastEl.classList.add("hidden"), 2200);
+  showToast._t = setTimeout(() => toastEl.classList.add("hidden"), duration);
 }
+function showConfirm(title, message, { danger = true, confirmText = "Xác nhận" } = {}) {
+  return new Promise((resolve) => {
+    confirmTitle.textContent = title;
+    confirmMessage.textContent = message;
+    confirmOkBtn.textContent = confirmText;
+    confirmOkBtn.classList.toggle("btn-danger", danger);
+    confirmModal.classList.remove("hidden");
+
+    const cleanup = (result) => {
+      confirmModal.classList.add("hidden");
+      confirmOkBtn.removeEventListener("click", onOk);
+      confirmCancelBtn.removeEventListener("click", onCancel);
+      confirmModal.removeEventListener("click", onOverlay);
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onOverlay = (e) => { if (e.target === confirmModal) cleanup(false); };
+
+    confirmOkBtn.addEventListener("click", onOk);
+    confirmCancelBtn.addEventListener("click", onCancel);
+    confirmModal.addEventListener("click", onOverlay);
+  });
+}
+
+/* ---------------- Network status ---------------- */
+function updateOnlineBanner() {
+  offlineBanner.classList.toggle("hidden", navigator.onLine);
+}
+window.addEventListener("online", () => {
+  updateOnlineBanner();
+  showToast("Đã có mạng lại — dữ liệu đang đồng bộ");
+});
+window.addEventListener("offline", () => {
+  updateOnlineBanner();
+  showToast("Mất kết nối mạng — nội dung bạn gõ vẫn được giữ, sẽ tự lưu khi có mạng lại", { duration: 4000 });
+});
+updateOnlineBanner();
+
 function pagesCol() {
   return collection(db, "users", currentUser.uid, "pages");
 }
@@ -86,7 +156,10 @@ googleLoginBtn.addEventListener("click", async () => {
     showToast("Đăng nhập thất bại: " + err.message);
   }
 });
-logoutBtn.addEventListener("click", () => signOut(auth));
+logoutBtn.addEventListener("click", async () => {
+  const ok = await showConfirm("Đăng xuất?", "Bạn cần đăng nhập lại để xem các trang của mình.", { danger: false, confirmText: "Đăng xuất" });
+  if (ok) signOut(auth);
+});
 
 onAuthStateChanged(auth, (user) => {
   currentUser = user;
@@ -110,10 +183,15 @@ onAuthStateChanged(auth, (user) => {
 
 /* ---------------- Pages: realtime tree ---------------- */
 function subscribeToPages() {
+  sidebarSkeleton.classList.remove("hidden");
+  pageTree.classList.add("hidden");
   const q = query(pagesCol(), orderBy("order", "asc"));
   unsubPages = onSnapshot(q, (snap) => {
     pagesById.clear();
     snap.forEach((d) => pagesById.set(d.id, { id: d.id, ...d.data() }));
+    pagesFirstLoadDone = true;
+    sidebarSkeleton.classList.add("hidden");
+    pageTree.classList.remove("hidden");
     renderTree();
     // Keep header title in sync if the currently open page's title changed elsewhere
     if (currentPageId && pagesById.has(currentPageId)) {
@@ -131,17 +209,17 @@ function subscribeToPages() {
 
 function renderTree() {
   const roots = [...pagesById.values()]
-    .filter((p) => !p.parentId)
+    .filter((p) => !p.parentId && !pendingPageDeletions.has(p.id))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   pageTree.innerHTML = "";
-  sidebarEmpty.classList.toggle("hidden", roots.length > 0);
+  sidebarEmpty.classList.toggle("hidden", roots.length > 0 || !pagesFirstLoadDone);
   roots.forEach((p) => pageTree.appendChild(buildNode(p)));
 }
 
 function buildNode(page) {
   const children = [...pagesById.values()]
-    .filter((p) => p.parentId === page.id)
+    .filter((p) => p.parentId === page.id && !pendingPageDeletions.has(p.id))
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   const li = document.createElement("li");
@@ -167,6 +245,12 @@ function buildNode(page) {
   title.className = "node-title";
   title.textContent = page.title || "Không có tiêu đề";
 
+  const badge = document.createElement("span");
+  if (page.todoOpenCount > 0) {
+    badge.className = "node-badge";
+    badge.textContent = page.todoOpenCount;
+  }
+
   const actions = document.createElement("span");
   actions.className = "node-actions";
   const addChildBtn = document.createElement("button");
@@ -186,7 +270,7 @@ function buildNode(page) {
   });
   actions.append(addChildBtn, delBtn);
 
-  row.append(caret, icon, title, actions);
+  row.append(caret, icon, title, badge, actions);
   row.addEventListener("click", () => openPage(page.id));
 
   li.appendChild(row);
@@ -210,6 +294,8 @@ async function createPage(parentId) {
     icon: "📄",
     parentId: parentId || null,
     order: siblingCount,
+    todoOpenCount: 0,
+    todoTotalCount: 0,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -220,12 +306,34 @@ async function createPage(parentId) {
 async function deletePageWithConfirm(pageId, title) {
   const hasChildren = [...pagesById.values()].some((p) => p.parentId === pageId);
   const msg = hasChildren
-    ? `Xóa "${title || "trang này"}" sẽ xóa luôn tất cả trang con bên trong. Tiếp tục?`
+    ? `Xóa "${title || "trang này"}" sẽ xóa luôn tất cả trang con bên trong.`
     : `Xóa "${title || "trang này"}"? Hành động này không thể hoàn tác.`;
-  if (!confirm(msg)) return;
-  await deletePageRecursive(pageId);
+  const ok = await showConfirm("Xóa trang?", msg, { danger: true, confirmText: "Xóa" });
+  if (!ok) return;
+
+  // Ẩn khỏi UI ngay lập tức, nhưng chưa xóa thật trên Firestore - cho 5s để Hoàn tác
+  const timeoutId = setTimeout(async () => {
+    pendingPageDeletions.delete(pageId);
+    await deletePageRecursive(pageId);
+  }, 5000);
+  pendingPageDeletions.set(pageId, { timeoutId, title });
+
   if (currentPageId === pageId) showEmptyPageState();
-  showToast("Đã xóa trang");
+  renderTree();
+
+  showToast(`Đã xóa "${title || "trang này"}"`, {
+    actionLabel: "Hoàn tác",
+    duration: 5000,
+    onAction: () => {
+      const pending = pendingPageDeletions.get(pageId);
+      if (pending) {
+        clearTimeout(pending.timeoutId);
+        pendingPageDeletions.delete(pageId);
+        renderTree();
+        showToast("Đã hoàn tác");
+      }
+    }
+  });
 }
 
 async function deletePageRecursive(pageId) {
@@ -283,23 +391,36 @@ pageIconBtn.addEventListener("click", () => {
 
 /* ---------------- Open page / blocks ---------------- */
 function showEmptyPageState() {
+  currentView = "empty";
   currentPageId = null;
   pageView.classList.add("hidden");
+  pageSkeleton.classList.add("hidden");
+  todayView.classList.add("hidden");
+  todayNavBtn.classList.remove("active");
   emptyState.classList.remove("hidden");
   if (unsubBlocks) unsubBlocks();
+  if (unsubToday) unsubToday();
   blocksContainer.innerHTML = "";
   renderTree();
   closeSidebarOnMobile();
 }
 
+emptyStateNewBtn.addEventListener("click", () => createPage(null));
+
 function openPage(pageId) {
+  currentView = "page";
   currentPageId = pageId;
   emptyState.classList.add("hidden");
-  pageView.classList.remove("hidden");
+  todayView.classList.add("hidden");
+  if (unsubToday) unsubToday();
+  todayNavBtn.classList.remove("active");
 
   const p = pagesById.get(pageId);
   pageTitleEl.textContent = p?.title || "";
   pageIconBtn.textContent = p?.icon || "📄";
+
+  pageView.classList.add("hidden");
+  pageSkeleton.classList.remove("hidden");
 
   renderTree();
   subscribeToBlocks(pageId);
@@ -308,12 +429,20 @@ function openPage(pageId) {
 
 function subscribeToBlocks(pageId) {
   if (unsubBlocks) unsubBlocks();
+  let firstLoad = true;
   const q = query(blocksCol(pageId), orderBy("order", "asc"));
   unsubBlocks = onSnapshot(q, (snap) => {
+    if (firstLoad) {
+      firstLoad = false;
+      pageSkeleton.classList.add("hidden");
+      pageView.classList.remove("hidden");
+    }
     const blocks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderBlocks(blocks);
   }, (err) => {
     console.error(err);
+    pageSkeleton.classList.add("hidden");
+    pageView.classList.remove("hidden");
     showToast("Lỗi tải nội dung trang");
   });
 }
@@ -393,32 +522,112 @@ function buildEditableText(block, className, placeholder) {
   return div;
 }
 
-function buildTodo(block) {
+const PRIORITY_LABELS = { high: "🔴 Cao", medium: "🟠 Trung bình", low: "🔵 Thấp" };
+const PRIORITY_ORDER = [null, "low", "medium", "high"];
+
+function formatDueDate(iso) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}`;
+}
+function dueStatus(iso) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const due = new Date(iso + "T00:00:00");
+  if (due < today) return "overdue";
+  if (due.getTime() === today.getTime()) return "today";
+  return "upcoming";
+}
+
+async function setTodoChecked(pageId, blockId, checked) {
+  await updateDoc(doc(db, "users", currentUser.uid, "pages", pageId, "blocks", blockId), { checked });
+  await updateDoc(doc(db, "users", currentUser.uid, "pages", pageId), {
+    todoOpenCount: increment(checked ? -1 : 1)
+  });
+}
+
+function buildTodo(block, pageIdOverride) {
+  const pageId = pageIdOverride || currentPageId;
   const wrap = document.createElement("div");
   wrap.className = "block-todo" + (block.checked ? " checked" : "");
+
+  const top = document.createElement("div");
+  top.style.display = "flex";
+  top.style.alignItems = "flex-start";
+  top.style.gap = "8px";
+  top.style.width = "100%";
 
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.checked = !!block.checked;
   checkbox.addEventListener("change", () => {
     wrap.classList.toggle("checked", checkbox.checked);
-    updateDoc(doc(db, "users", currentUser.uid, "pages", currentPageId, "blocks", block.id), {
-      checked: checkbox.checked
-    });
+    setTodoChecked(pageId, block.id, checkbox.checked);
   });
+
+  const rightCol = document.createElement("div");
+  rightCol.style.flex = "1";
+  rightCol.style.minWidth = "0";
 
   const text = document.createElement("div");
   text.className = "todo-text";
   text.contentEditable = "true";
   text.textContent = block.content || "";
   const save = debounce(() => {
-    updateDoc(doc(db, "users", currentUser.uid, "pages", currentPageId, "blocks", block.id), {
+    updateDoc(doc(db, "users", currentUser.uid, "pages", pageId, "blocks", block.id), {
       content: text.textContent
     });
   }, 500);
   text.addEventListener("input", save);
 
-  wrap.append(checkbox, text);
+  // ---- Due date + priority row ----
+  const meta = document.createElement("div");
+  meta.className = "todo-meta";
+
+  if (block.dueDate) {
+    const chip = document.createElement("span");
+    chip.className = "due-chip " + dueStatus(block.dueDate);
+    chip.innerHTML = `📅 ${formatDueDate(block.dueDate)} `;
+    const clearBtn = document.createElement("button");
+    clearBtn.textContent = "✕";
+    clearBtn.title = "Bỏ hạn";
+    clearBtn.addEventListener("click", () => {
+      updateDoc(doc(db, "users", currentUser.uid, "pages", pageId, "blocks", block.id), { dueDate: null });
+    });
+    chip.appendChild(clearBtn);
+    meta.appendChild(chip);
+  } else {
+    const dateBtn = document.createElement("button");
+    dateBtn.className = "todo-meta-btn";
+    dateBtn.textContent = "📅 Thêm hạn";
+    dateBtn.addEventListener("click", () => {
+      const input = document.createElement("input");
+      input.type = "date";
+      input.className = "due-date-input";
+      input.addEventListener("change", () => {
+        if (input.value) {
+          updateDoc(doc(db, "users", currentUser.uid, "pages", pageId, "blocks", block.id), { dueDate: input.value });
+        }
+      });
+      dateBtn.replaceWith(input);
+      input.showPicker ? input.showPicker() : input.focus();
+    });
+    meta.appendChild(dateBtn);
+  }
+
+  const flagBtn = document.createElement("button");
+  const currentPriority = block.priority || null;
+  flagBtn.className = "priority-flag" + (currentPriority ? " set" : "");
+  flagBtn.textContent = currentPriority ? PRIORITY_LABELS[currentPriority] : "🚩 Ưu tiên";
+  flagBtn.title = "Bấm để đổi mức ưu tiên";
+  flagBtn.addEventListener("click", () => {
+    const idx = PRIORITY_ORDER.indexOf(currentPriority);
+    const next = PRIORITY_ORDER[(idx + 1) % PRIORITY_ORDER.length];
+    updateDoc(doc(db, "users", currentUser.uid, "pages", pageId, "blocks", block.id), { priority: next });
+  });
+  meta.appendChild(flagBtn);
+
+  rightCol.append(text, meta);
+  top.append(checkbox, rightCol);
+  wrap.appendChild(top);
   return wrap;
 }
 
@@ -539,14 +748,21 @@ async function addBlock(type) {
   const snap = await getDocs(blocksCol(currentPageId));
   const order = snap.size;
   const base = { type, order, createdAt: serverTimestamp() };
-  if (type === "todo") Object.assign(base, { content: "", checked: false });
+  if (type === "todo") Object.assign(base, { content: "", checked: false, dueDate: null, priority: null });
   else if (type === "image") Object.assign(base, { imageUrl: "" });
   else if (type === "link") Object.assign(base, { url: "", label: "" });
   else Object.assign(base, { content: "" });
   await addDoc(blocksCol(currentPageId), base);
+  if (type === "todo") {
+    await updateDoc(doc(db, "users", currentUser.uid, "pages", currentPageId), {
+      todoTotalCount: increment(1), todoOpenCount: increment(1)
+    });
+  }
 }
 
 async function deleteBlock(block) {
+  const ok = await showConfirm("Xóa khối này?", "Nội dung sẽ bị xóa vĩnh viễn.", { danger: true, confirmText: "Xóa" });
+  if (!ok) return;
   if (block.type === "image" && block.storagePath) {
     deleteObject(ref(storage, block.storagePath)).catch(() => {});
   }

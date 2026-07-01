@@ -29,6 +29,7 @@
   <!-- APP -->
   <div id="app" class="app hidden">
     <button id="sidebarToggle" class="sidebar-toggle" aria-label="Đóng/mở sidebar">☰</button>
+    <div id="offlineBanner" class="offline-banner hidden">📡 Mất kết nối mạng — thay đổi sẽ tự đồng bộ khi có mạng lại</div>
 
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-user">
@@ -41,7 +42,18 @@
         <span class="plus">＋</span> Trang mới
       </button>
 
+      <button id="todayNavBtn" class="sidebar-new-btn today-nav-btn">
+        <span class="plus">📋</span> Việc cần làm hôm nay
+      </button>
+
       <div class="sidebar-label">Trang của bạn</div>
+
+      <div id="sidebarSkeleton" class="sidebar-skeleton">
+        <div class="skeleton-bar w-70"></div>
+        <div class="skeleton-bar w-50"></div>
+        <div class="skeleton-bar w-60"></div>
+      </div>
+
       <ul id="pageTree" class="page-tree"></ul>
 
       <div id="sidebarEmpty" class="sidebar-empty hidden">Chưa có trang nào. Bấm "Trang mới" để bắt đầu.</div>
@@ -51,6 +63,23 @@
       <div id="emptyState" class="empty-state">
         <div class="empty-state-mark">✎</div>
         <p>Chọn một trang bên trái, hoặc tạo trang mới.</p>
+        <button id="emptyStateNewBtn" class="btn btn-primary">＋ Tạo trang đầu tiên</button>
+      </div>
+
+      <div id="pageSkeleton" class="page-skeleton hidden">
+        <div class="skeleton-bar w-40" style="height:32px;margin-bottom:20px;"></div>
+        <div class="skeleton-bar w-90"></div>
+        <div class="skeleton-bar w-80"></div>
+        <div class="skeleton-bar w-60"></div>
+      </div>
+
+      <div id="todayView" class="today-view hidden">
+        <div class="page-header today-header">
+          <span class="page-icon-btn today-icon">📋</span>
+          <div class="page-title today-title">Việc cần làm hôm nay</div>
+        </div>
+        <div id="todayGroups" class="today-groups"></div>
+        <div id="todayEmpty" class="today-empty hidden">🎉 Không có việc nào đang chờ — mọi thứ đã xong!</div>
       </div>
 
       <div id="pageView" class="page-view hidden">
@@ -79,7 +108,21 @@
   <!-- Hidden file input for image upload -->
   <input type="file" id="imageFileInput" accept="image/*" class="hidden" />
 
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast" class="toast hidden">
+    <span id="toastMessage" class="toast-message"></span>
+    <button id="toastActionBtn" class="toast-action hidden"></button>
+  </div>
+
+  <div id="confirmModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3 id="confirmTitle" class="modal-title"></h3>
+      <p id="confirmMessage" class="modal-message"></p>
+      <div class="modal-actions">
+        <button id="confirmCancelBtn" class="btn">Hủy</button>
+        <button id="confirmOkBtn" class="btn btn-danger">Xác nhận</button>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="app.js"></script>
 </body>

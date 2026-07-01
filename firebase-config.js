@@ -1,10 +1,10 @@
 // Dán config từ Firebase Console vào đây:
 // Firebase Console → Project settings → General → "Your apps" → SDK setup and configuration
 export const firebaseConfig = {
-  apiKey: "DÁN_API_KEY_CỦA_BẠN",
-  authDomain: "DÁN_AUTH_DOMAIN_CỦA_BẠN",
-  projectId: "DÁN_PROJECT_ID_CỦA_BẠN",
-  storageBucket: "DÁN_STORAGE_BUCKET_CỦA_BẠN",
-  messagingSenderId: "DÁN_SENDER_ID_CỦA_BẠN",
-  appId: "DÁN_APP_ID_CỦA_BẠN"
+  apiKey: "AIzaSyA1z2GyPxO1cL0sjIQt5W1SJAkSfDMzSf0",
+  authDomain: "todoapp-61616.firebaseapp.com",
+  projectId: "todoapp-61616",
+  storageBucket: "todoapp-61616.firebasestorage.app",
+  messagingSenderId: "825166301302",
+  appId: "1:825166301302:web:bdb88902c43ddf4da8b757"
 };
