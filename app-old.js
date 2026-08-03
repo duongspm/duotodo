@@ -7,11 +7,15 @@ import {
   getFirestore, collection, collectionGroup, doc, addDoc, updateDoc, deleteDoc, onSnapshot,
   query, where, orderBy, writeBatch, serverTimestamp, getDocs, increment
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getStorage, ref, uploadBytes, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 /* ---------------- Firebase init ---------------- */
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 const provider = new GoogleAuthProvider();
 
 /* ---------------- DOM refs ---------------- */
@@ -52,14 +56,6 @@ const pageSkeleton = $("pageSkeleton");
 const toastMessage = $("toastMessage");
 const toastActionBtn = $("toastActionBtn");
 const emptyStateNewBtn = $("emptyStateNewBtn");
-const detailModal = $("detailModal");
-const detailCloseBtn = $("detailCloseBtn");
-const detailCheckbox = $("detailCheckbox");
-const detailTitle = $("detailTitle");
-const detailDescription = $("detailDescription");
-const detailImageWrap = $("detailImageWrap");
-const detailLinkWrap = $("detailLinkWrap");
-const detailImageFileInput = $("detailImageFileInput");
 
 /* ---------------- State ---------------- */
 let currentUser = null;
@@ -73,7 +69,6 @@ let pendingImageBlockId = null;
 let pagesFirstLoadDone = false;
 let pendingPageDeletions = new Map(); // pageId -> { timeoutId, title }
 let currentView = "empty"; // 'empty' | 'page' | 'today'
-let detailContext = null; // { pageId, blockId }
 
 /* ---------------- Utils ---------------- */
 function debounce(fn, wait = 500) {
@@ -106,58 +101,50 @@ function showToast(msg, { actionLabel = null, onAction = null, duration = 2200 }
   clearTimeout(showToast._t);
   showToast._t = setTimeout(() => toastEl.classList.add("hidden"), duration);
 }
+function showConfirm(title, message, { danger = true, confirmText = "Xác nhận" } = {}) {
+  return new Promise((resolve) => {
+    confirmTitle.textContent = title;
+    confirmMessage.textContent = message;
+    confirmOkBtn.textContent = confirmText;
+    confirmOkBtn.classList.toggle("btn-danger", danger);
+    confirmModal.classList.remove("hidden");
+
+    const cleanup = (result) => {
+      confirmModal.classList.add("hidden");
+      confirmOkBtn.removeEventListener("click", onOk);
+      confirmCancelBtn.removeEventListener("click", onCancel);
+      confirmModal.removeEventListener("click", onOverlay);
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onOverlay = (e) => { if (e.target === confirmModal) cleanup(false); };
+
+    confirmOkBtn.addEventListener("click", onOk);
+    confirmCancelBtn.addEventListener("click", onCancel);
+    confirmModal.addEventListener("click", onOverlay);
+  });
+}
+
+/* ---------------- Network status ---------------- */
+function updateOnlineBanner() {
+  offlineBanner.classList.toggle("hidden", navigator.onLine);
+}
+window.addEventListener("online", () => {
+  updateOnlineBanner();
+  showToast("Đã có mạng lại — dữ liệu đang đồng bộ");
+});
+window.addEventListener("offline", () => {
+  updateOnlineBanner();
+  showToast("Mất kết nối mạng — nội dung bạn gõ vẫn được giữ, sẽ tự lưu khi có mạng lại", { duration: 4000 });
+});
+updateOnlineBanner();
+
 function pagesCol() {
   return collection(db, "users", currentUser.uid, "pages");
 }
 function blocksCol(pageId) {
   return collection(db, "users", currentUser.uid, "pages", pageId, "blocks");
-}
-function blockRef(pageId, blockId) {
-  return doc(db, "users", currentUser.uid, "pages", pageId, "blocks", blockId);
-}
-
-/* ---------------- Image upload via Vercel Blob ---------------- */
-function compressImage(file, maxDim = 1600, quality = 0.82) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const reader = new FileReader();
-    reader.onload = () => { img.src = reader.result; };
-    reader.onerror = reject;
-    img.onload = () => {
-      let { width, height } = img;
-      if (width > maxDim || height > maxDim) {
-        const scale = maxDim / Math.max(width, height);
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
-      }
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Nén ảnh thất bại")), "image/jpeg", quality);
-    };
-    img.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-async function uploadImageToBlob(file) {
-  const compressed = await compressImage(file);
-  const filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "")}`;
-  const res = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`, {
-    method: "POST",
-    body: compressed
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Tải ảnh lên thất bại");
-  }
-  return res.json(); // { url, ... }
-}
-
-function deleteImageFromBlob(url) {
-  if (!url) return;
-  fetch(`/api/delete-image?url=${encodeURIComponent(url)}`, { method: "DELETE" }).catch(() => {});
 }
 
 /* ---------------- Auth ---------------- */
@@ -198,46 +185,6 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-/* ---------------- Confirm modal ---------------- */
-function showConfirm(title, message, { danger = true, confirmText = "Xác nhận" } = {}) {
-  return new Promise((resolve) => {
-    confirmTitle.textContent = title;
-    confirmMessage.textContent = message;
-    confirmOkBtn.textContent = confirmText;
-    confirmOkBtn.classList.toggle("btn-danger", danger);
-    confirmModal.classList.remove("hidden");
-
-    const cleanup = (result) => {
-      confirmModal.classList.add("hidden");
-      confirmOkBtn.removeEventListener("click", onOk);
-      confirmCancelBtn.removeEventListener("click", onCancel);
-      confirmModal.removeEventListener("click", onOverlay);
-      resolve(result);
-    };
-    const onOk = () => cleanup(true);
-    const onCancel = () => cleanup(false);
-    const onOverlay = (e) => { if (e.target === confirmModal) cleanup(false); };
-
-    confirmOkBtn.addEventListener("click", onOk);
-    confirmCancelBtn.addEventListener("click", onCancel);
-    confirmModal.addEventListener("click", onOverlay);
-  });
-}
-
-/* ---------------- Network status ---------------- */
-function updateOnlineBanner() {
-  offlineBanner.classList.toggle("hidden", navigator.onLine);
-}
-window.addEventListener("online", () => {
-  updateOnlineBanner();
-  showToast("Đã có mạng lại — dữ liệu đang đồng bộ");
-});
-window.addEventListener("offline", () => {
-  updateOnlineBanner();
-  showToast("Mất kết nối mạng — nội dung bạn gõ vẫn được giữ, sẽ tự lưu khi có mạng lại", { duration: 4000 });
-});
-updateOnlineBanner();
-
 /* ---------------- Pages: realtime tree ---------------- */
 function subscribeToPages() {
   sidebarSkeleton.classList.remove("hidden");
@@ -250,6 +197,7 @@ function subscribeToPages() {
     sidebarSkeleton.classList.add("hidden");
     pageTree.classList.remove("hidden");
     renderTree();
+    // Keep header title in sync if the currently open page's title changed elsewhere
     if (currentPageId && pagesById.has(currentPageId)) {
       const p = pagesById.get(currentPageId);
       if (document.activeElement !== pageTitleEl) pageTitleEl.textContent = p.title || "";
@@ -341,7 +289,6 @@ function buildNode(page) {
 
 /* ---------------- Page create / delete ---------------- */
 newRootPageBtn.addEventListener("click", () => createPage(null));
-emptyStateNewBtn.addEventListener("click", () => createPage(null));
 
 async function createPage(parentId) {
   if (!currentUser) return;
@@ -368,6 +315,7 @@ async function deletePageWithConfirm(pageId, title) {
   const ok = await showConfirm("Xóa trang?", msg, { danger: true, confirmText: "Xóa" });
   if (!ok) return;
 
+  // Ẩn khỏi UI ngay lập tức, nhưng chưa xóa thật trên Firestore - cho 5s để Hoàn tác
   const timeoutId = setTimeout(async () => {
     pendingPageDeletions.delete(pageId);
     await deletePageRecursive(pageId);
@@ -393,16 +341,19 @@ async function deletePageWithConfirm(pageId, title) {
 }
 
 async function deletePageRecursive(pageId) {
+  // delete blocks (and their images) of this page
   const blocksSnap = await getDocs(blocksCol(pageId));
   for (const b of blocksSnap.docs) {
     const data = b.data();
-    if (data.type === "image" && data.storagePath) deleteImageFromBlob(data.storagePath);
-    if (data.type === "todo" && data.descImageUrl) deleteImageFromBlob(data.descImageUrl);
+    if (data.type === "image" && data.storagePath) {
+      deleteObject(ref(storage, data.storagePath)).catch(() => {});
+    }
   }
   const batch = writeBatch(db);
   blocksSnap.forEach((b) => batch.delete(b.ref));
   await batch.commit();
 
+  // delete child pages recursively
   const children = [...pagesById.values()].filter((p) => p.parentId === pageId);
   for (const c of children) {
     await deletePageRecursive(c.id);
@@ -457,6 +408,8 @@ function showEmptyPageState() {
   renderTree();
   closeSidebarOnMobile();
 }
+
+emptyStateNewBtn.addEventListener("click", () => createPage(null));
 
 function openPage(pageId) {
   currentView = "page";
@@ -565,13 +518,14 @@ function buildEditableText(block, className, placeholder) {
   div.dataset.placeholder = placeholder;
   div.textContent = block.content || "";
   const save = debounce(() => {
-    updateDoc(blockRef(currentPageId, block.id), { content: div.textContent });
+    updateDoc(doc(db, "users", currentUser.uid, "pages", currentPageId, "blocks", block.id), {
+      content: div.textContent
+    });
   }, 500);
   div.addEventListener("input", save);
   return div;
 }
 
-/* ---------------- Todo: due date, priority, detail modal ---------------- */
 const PRIORITY_LABELS = { high: "🔴 Cao", medium: "🟠 Trung bình", low: "🔵 Thấp" };
 const PRIORITY_ORDER = [null, "low", "medium", "high"];
 
@@ -588,7 +542,7 @@ function dueStatus(iso) {
 }
 
 async function setTodoChecked(pageId, blockId, checked) {
-  await updateDoc(blockRef(pageId, blockId), { checked });
+  await updateDoc(doc(db, "users", currentUser.uid, "pages", pageId, "blocks", blockId), { checked });
   await updateDoc(doc(db, "users", currentUser.uid, "pages", pageId), {
     todoOpenCount: increment(checked ? -1 : 1)
   });
@@ -622,10 +576,13 @@ function buildTodo(block, pageIdOverride) {
   text.contentEditable = "true";
   text.textContent = block.content || "";
   const save = debounce(() => {
-    updateDoc(blockRef(pageId, block.id), { content: text.textContent });
+    updateDoc(doc(db, "users", currentUser.uid, "pages", pageId, "blocks", block.id), {
+      content: text.textContent
+    });
   }, 500);
   text.addEventListener("input", save);
 
+  // ---- Due date + priority row ----
   const meta = document.createElement("div");
   meta.className = "todo-meta";
 
@@ -637,7 +594,7 @@ function buildTodo(block, pageIdOverride) {
     clearBtn.textContent = "✕";
     clearBtn.title = "Bỏ hạn";
     clearBtn.addEventListener("click", () => {
-      updateDoc(blockRef(pageId, block.id), { dueDate: null });
+      updateDoc(doc(db, "users", currentUser.uid, "pages", pageId, "blocks", block.id), { dueDate: null });
     });
     chip.appendChild(clearBtn);
     meta.appendChild(chip);
@@ -650,7 +607,9 @@ function buildTodo(block, pageIdOverride) {
       input.type = "date";
       input.className = "due-date-input";
       input.addEventListener("change", () => {
-        if (input.value) updateDoc(blockRef(pageId, block.id), { dueDate: input.value });
+        if (input.value) {
+          updateDoc(doc(db, "users", currentUser.uid, "pages", pageId, "blocks", block.id), { dueDate: input.value });
+        }
       });
       dateBtn.replaceWith(input);
       input.showPicker ? input.showPicker() : input.focus();
@@ -666,17 +625,9 @@ function buildTodo(block, pageIdOverride) {
   flagBtn.addEventListener("click", () => {
     const idx = PRIORITY_ORDER.indexOf(currentPriority);
     const next = PRIORITY_ORDER[(idx + 1) % PRIORITY_ORDER.length];
-    updateDoc(blockRef(pageId, block.id), { priority: next });
+    updateDoc(doc(db, "users", currentUser.uid, "pages", pageId, "blocks", block.id), { priority: next });
   });
   meta.appendChild(flagBtn);
-
-  const hasDetail = !!(block.description || block.descImageUrl || block.descLinkUrl);
-  const expandBtn = document.createElement("button");
-  expandBtn.className = "detail-expand-btn" + (hasDetail ? " has-content" : "");
-  expandBtn.textContent = hasDetail ? "📄 Chi tiết" : "⤢ Mở rộng";
-  expandBtn.title = "Xem chi tiết: mô tả, ảnh, link";
-  expandBtn.addEventListener("click", () => openDetailModal(pageId, block));
-  meta.appendChild(expandBtn);
 
   rightCol.append(text, meta);
   top.append(checkbox, rightCol);
@@ -684,126 +635,6 @@ function buildTodo(block, pageIdOverride) {
   return wrap;
 }
 
-/* ---------------- Detail modal (Trello-style) ---------------- */
-function openDetailModal(pageId, block) {
-  detailContext = { pageId, blockId: block.id };
-  detailCheckbox.checked = !!block.checked;
-  detailTitle.textContent = block.content || "";
-  detailDescription.value = block.description || "";
-  renderDetailImage(block.descImageUrl || null);
-  renderDetailLink(block.descLinkUrl || null, block.descLinkLabel || null);
-  detailModal.classList.remove("hidden");
-}
-function closeDetailModal() {
-  detailModal.classList.add("hidden");
-  detailContext = null;
-}
-detailCloseBtn.addEventListener("click", closeDetailModal);
-detailModal.addEventListener("click", (e) => { if (e.target === detailModal) closeDetailModal(); });
-
-detailCheckbox.addEventListener("change", () => {
-  if (!detailContext) return;
-  setTodoChecked(detailContext.pageId, detailContext.blockId, detailCheckbox.checked);
-});
-
-const saveDetailTitle = debounce(() => {
-  if (!detailContext) return;
-  updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { content: detailTitle.textContent });
-}, 500);
-detailTitle.addEventListener("input", saveDetailTitle);
-detailTitle.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
-
-const saveDetailDescription = debounce(() => {
-  if (!detailContext) return;
-  updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { description: detailDescription.value });
-}, 500);
-detailDescription.addEventListener("input", saveDetailDescription);
-
-function renderDetailImage(url) {
-  detailImageWrap.innerHTML = "";
-  if (url) {
-    const wrap = document.createElement("div");
-    wrap.className = "detail-image-preview";
-    const img = document.createElement("img");
-    img.src = url;
-    const removeBtn = document.createElement("button");
-    removeBtn.className = "detail-image-remove";
-    removeBtn.textContent = "✕";
-    removeBtn.title = "Xóa ảnh";
-    removeBtn.addEventListener("click", async () => {
-      if (!detailContext) return;
-      deleteImageFromBlob(url);
-      await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descImageUrl: null });
-      renderDetailImage(null);
-    });
-    wrap.append(img, removeBtn);
-    detailImageWrap.appendChild(wrap);
-  } else {
-    const btn = document.createElement("button");
-    btn.className = "btn";
-    btn.textContent = "🖼 Thêm ảnh";
-    btn.addEventListener("click", () => detailImageFileInput.click());
-    detailImageWrap.appendChild(btn);
-  }
-}
-
-detailImageFileInput.addEventListener("change", async () => {
-  const file = detailImageFileInput.files[0];
-  detailImageFileInput.value = "";
-  if (!file || !detailContext) return;
-  detailImageWrap.innerHTML = '<div class="detail-image-uploading">Đang tải ảnh lên...</div>';
-  try {
-    const blob = await uploadImageToBlob(file);
-    await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descImageUrl: blob.url });
-    renderDetailImage(blob.url);
-  } catch (err) {
-    console.error(err);
-    showToast("Lỗi tải ảnh: " + err.message);
-    renderDetailImage(null);
-  }
-});
-
-function renderDetailLink(url, label) {
-  detailLinkWrap.innerHTML = "";
-  if (url) {
-    const card = document.createElement("div");
-    card.className = "detail-link-card";
-    const a = document.createElement("a");
-    a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
-    a.textContent = label || url;
-    const removeBtn = document.createElement("button");
-    removeBtn.textContent = "✕ Bỏ link";
-    removeBtn.addEventListener("click", async () => {
-      if (!detailContext) return;
-      await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descLinkUrl: null, descLinkLabel: null });
-      renderDetailLink(null, null);
-    });
-    card.append(a, removeBtn);
-    detailLinkWrap.appendChild(card);
-  } else {
-    const row = document.createElement("div");
-    row.className = "link-edit-row";
-    const input = document.createElement("input");
-    input.placeholder = "Dán URL, ví dụ https://...";
-    const btn = document.createElement("button");
-    btn.className = "btn";
-    btn.textContent = "Lưu";
-    btn.addEventListener("click", async () => {
-      if (!detailContext) return;
-      let cleanUrl = input.value.trim();
-      if (!cleanUrl) return;
-      if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = "https://" + cleanUrl;
-      let hostname = cleanUrl;
-      try { hostname = new URL(cleanUrl).hostname; } catch (_) {}
-      await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descLinkUrl: cleanUrl, descLinkLabel: hostname });
-      renderDetailLink(cleanUrl, hostname);
-    });
-    row.append(input, btn);
-    detailLinkWrap.appendChild(row);
-  }
-}
-
-/* ---------------- Image / Link blocks (page content) ---------------- */
 function buildImage(block) {
   const wrap = document.createElement("div");
   wrap.className = "block-image";
@@ -829,7 +660,11 @@ function buildImage(block) {
     urlBtn.textContent = "Dán link ảnh";
     urlBtn.addEventListener("click", () => {
       const url = prompt("Dán URL ảnh:");
-      if (url) updateDoc(blockRef(currentPageId, block.id), { imageUrl: url.trim() });
+      if (url) {
+        updateDoc(doc(db, "users", currentUser.uid, "pages", currentPageId, "blocks", block.id), {
+          imageUrl: url.trim()
+        });
+      }
     });
     box.append(document.createElement("br"), btn, urlBtn);
     wrap.appendChild(box);
@@ -845,8 +680,13 @@ imageFileInput.addEventListener("change", async () => {
   pendingImageBlockId = null;
   try {
     showToast("Đang tải ảnh lên...");
-    const blob = await uploadImageToBlob(file);
-    await updateDoc(blockRef(currentPageId, blockId), { imageUrl: blob.url, storagePath: blob.url });
+    const path = `users/${currentUser.uid}/images/${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+    await updateDoc(doc(db, "users", currentUser.uid, "pages", currentPageId, "blocks", blockId), {
+      imageUrl: url, storagePath: path
+    });
     showToast("Đã tải ảnh lên");
   } catch (err) {
     console.error(err);
@@ -885,7 +725,7 @@ function buildLink(block) {
       let url = input.value.trim();
       if (!url) return;
       if (!/^https?:\/\//i.test(url)) url = "https://" + url;
-      updateDoc(blockRef(currentPageId, block.id), { url });
+      updateDoc(doc(db, "users", currentUser.uid, "pages", currentPageId, "blocks", block.id), { url });
     });
     row.append(input, btn);
     wrap.appendChild(row);
@@ -912,12 +752,8 @@ async function addBlock(type) {
   const snap = await getDocs(blocksCol(currentPageId));
   const order = snap.size;
   const base = { type, order, createdAt: serverTimestamp() };
-  if (type === "todo") {
-    Object.assign(base, {
-      content: "", checked: false, dueDate: null, priority: null,
-      description: "", descImageUrl: null, descLinkUrl: null, descLinkLabel: null
-    });
-  } else if (type === "image") Object.assign(base, { imageUrl: "" });
+  if (type === "todo") Object.assign(base, { content: "", checked: false, dueDate: null, priority: null });
+  else if (type === "image") Object.assign(base, { imageUrl: "" });
   else if (type === "link") Object.assign(base, { url: "", label: "" });
   else Object.assign(base, { content: "" });
   await addDoc(blocksCol(currentPageId), base);
@@ -931,15 +767,10 @@ async function addBlock(type) {
 async function deleteBlock(block) {
   const ok = await showConfirm("Xóa khối này?", "Nội dung sẽ bị xóa vĩnh viễn.", { danger: true, confirmText: "Xóa" });
   if (!ok) return;
-  if (block.type === "image" && block.storagePath) deleteImageFromBlob(block.storagePath);
-  if (block.type === "todo" && block.descImageUrl) deleteImageFromBlob(block.descImageUrl);
-  await deleteDoc(blockRef(currentPageId, block.id));
-  if (block.type === "todo") {
-    await updateDoc(doc(db, "users", currentUser.uid, "pages", currentPageId), {
-      todoTotalCount: increment(-1),
-      todoOpenCount: increment(block.checked ? 0 : -1)
-    });
+  if (block.type === "image" && block.storagePath) {
+    deleteObject(ref(storage, block.storagePath)).catch(() => {});
   }
+  await deleteDoc(doc(db, "users", currentUser.uid, "pages", currentPageId, "blocks", block.id));
 }
 
 async function reorderBlocks(draggedId, targetId, allBlocks) {
@@ -951,7 +782,7 @@ async function reorderBlocks(draggedId, targetId, allBlocks) {
 
   const batch = writeBatch(db);
   ids.forEach((id, idx) => {
-    batch.update(blockRef(currentPageId, id), { order: idx });
+    batch.update(doc(db, "users", currentUser.uid, "pages", currentPageId, "blocks", id), { order: idx });
   });
   await batch.commit();
 }
@@ -1045,8 +876,6 @@ function buildTodayItem(item) {
   const text = document.createElement("div");
   text.className = "today-item-text";
   text.textContent = item.content || "(không có nội dung)";
-  text.style.cursor = "pointer";
-  text.addEventListener("click", () => openDetailModal(item.pageId, item));
 
   const meta = document.createElement("div");
   meta.className = "today-item-meta";
@@ -1075,6 +904,7 @@ function buildTodayItem(item) {
   return row;
 }
 
+/* ---------------- Sidebar toggle (mobile) ---------------- */
 /* ---------------- Sidebar toggle (mobile) ---------------- */
 sidebarToggle.addEventListener("click", () => sidebar.classList.toggle("open"));
 function closeSidebarOnMobile() {

@@ -27,6 +27,7 @@
   </div>
 
   <!-- APP -->
+ <!-- APP -->
   <div id="app" class="app hidden">
     <button id="sidebarToggle" class="sidebar-toggle" aria-label="Đóng/mở sidebar">☰</button>
     <div id="offlineBanner" class="offline-banner hidden">📡 Mất kết nối mạng — thay đổi sẽ tự đồng bộ khi có mạng lại</div>
@@ -97,7 +98,7 @@
             <button data-type="text">📝 Văn bản</button>
             <button data-type="heading">🔠 Tiêu đề</button>
             <button data-type="todo">☑️ Việc cần làm</button>
-            <button data-type="image">🖼 Hình ảnh</button>
+            <button data-type="image">🏞️ Hình ảnh</button>
             <button data-type="link">🔗 Liên kết</button>
           </div>
         </div>
@@ -107,6 +108,7 @@
 
   <!-- Hidden file input for image upload -->
   <input type="file" id="imageFileInput" accept="image/*" class="hidden" />
+  <input type="file" id="detailImageFileInput" accept="image/*" class="hidden" />
 
   <div id="toast" class="toast hidden">
     <span id="toastMessage" class="toast-message"></span>
@@ -120,6 +122,33 @@
       <div class="modal-actions">
         <button id="confirmCancelBtn" class="btn">Hủy</button>
         <button id="confirmOkBtn" class="btn btn-danger">Xác nhận</button>
+      </div>
+    </div>
+  </div>
+
+<!-- Trello-style task detail modal -->
+  <div id="detailModal" class="modal-overlay hidden">
+    <div class="modal-card detail-card">
+      <button id="detailCloseBtn" class="icon-btn detail-close-btn" title="Đóng">✕</button>
+
+      <div class="detail-title-row">
+        <input id="detailCheckbox" type="checkbox" />
+        <div id="detailTitle" class="detail-title" contenteditable="true" data-placeholder="Tên việc cần làm..."></div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-label">📝 Mô tả</div>
+        <textarea id="detailDescription" class="detail-textarea" placeholder="Thêm mô tả chi tiết hơn..."></textarea>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-label">🖼 Hình ảnh</div>
+        <div id="detailImageWrap"></div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-label">🔗 Liên kết</div>
+        <div id="detailLinkWrap"></div>
       </div>
     </div>
   </div>
