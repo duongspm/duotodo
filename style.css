@@ -966,6 +966,12 @@ button {
     transform: translateX(0);
     box-shadow: 0 0 24px rgba(0, 0, 0, .15);
   }
+  .sidebar-toggle{
+    transition: all .18s ease;
+  }
+  .sidebar-toggle.open{
+    transform: translateX(260px);
+  }
   .app {
     position: relative;
   }

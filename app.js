@@ -1076,7 +1076,14 @@ function buildTodayItem(item) {
 }
 
 /* ---------------- Sidebar toggle (mobile) ---------------- */
-sidebarToggle.addEventListener("click", () => sidebar.classList.toggle("open"));
+sidebarToggle.addEventListener("click", () => 
+{
+  sidebar.classList.toggle("open");
+  sidebarToggle.classList.toggle("open")
+});
 function closeSidebarOnMobile() {
-  if (window.innerWidth <= 768) sidebar.classList.remove("open");
+  if (window.innerWidth <= 768){
+    sidebar.classList.remove("open");
+    sidebarToggle.classList.remove("open")
+  } 
 }
