@@ -775,6 +775,9 @@ button {
   color:var(--text-tertiary);
   text-transform:uppercase;letter-spacing:.03em;
   margin-bottom:8px;
+  display: flex;
+  align-items: center;
+  gap: 1em;
 }
 .detail-textarea{
   width:100%;
@@ -990,7 +993,8 @@ button {
   animation: overlayIn .15s ease;
 }
 .modal-card {
-  width: 340px;
+  width: calc(100% - 40px);
+  max-width: 1080px;
   background: var(--bg);
   border-radius: 10px;
   padding: 22px;

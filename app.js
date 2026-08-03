@@ -741,7 +741,7 @@ function renderDetailImage(url) {
   } else {
     const btn = document.createElement("button");
     btn.className = "btn";
-    btn.textContent = "🖼 Thêm ảnh";
+    btn.textContent = "🏞️ Thêm ảnh";
     btn.addEventListener("click", () => detailImageFileInput.click());
     detailImageWrap.appendChild(btn);
   }
