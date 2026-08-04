@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+  <script>
+    // Đặt theme ngay từ đầu <head>, trước khi CSS render, để không bị nháy sai màu (FOUC)
+    (function () {
+      try {
+        var saved = localStorage.getItem("theme");
+        var theme = saved || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        if (theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
+      } catch (e) {}
+    })();
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -56,6 +66,10 @@
 
   <!-- LOGIN SCREEN -->
 <div id="loginScreen" class="hero">
+    <button id="themeToggleHeroBtn" class="theme-toggle-hero" title="Đổi giao diện sáng/tối">
+      <span class="theme-icon theme-icon-sun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg></span>
+      <span class="theme-icon theme-icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></span>
+    </button>
     <div class="hero-blob hero-blob-1"></div>
     <div class="hero-blob hero-blob-2"></div>
     <div class="hero-blob hero-blob-3"></div>
@@ -91,6 +105,10 @@
       <div class="sidebar-user">
         <img id="userAvatar" class="user-avatar" alt="">
         <span id="userName" class="user-name"></span>
+        <button id="themeToggleBtn" class="icon-btn" title="Đổi giao diện sáng/tối">
+          <span class="theme-icon theme-icon-sun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg></span>
+          <span class="theme-icon theme-icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></span>
+        </button>
         <button id="logoutBtn" class="icon-btn" title="Đăng xuất">
           <img src="assets/imgs/Exit.svg" alt="image photo" width="50">
         </button>
@@ -155,11 +173,11 @@
         <div class="add-block-wrap">
           <button id="addBlockBtn" class="add-block-btn">＋ Thêm khối</button>
           <div id="addBlockMenu" class="add-block-menu hidden">
-            <button class="text" data-type="text">📝 Văn bản</button>
-            <button class="heading" data-type="heading">🔠 Tiêu đề</button>
-            <button class="todo" data-type="todo">☑️ Việc cần làm</button>
-            <button class="image" data-type="image">🏞️ Hình ảnh</button>
-            <button class="link" data-type="link">🔗 Liên kết</button>
+            <button data-type="text"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="16" y2="12"/><line x1="4" y1="18" x2="12" y2="18"/></svg></span> Văn bản</button>
+            <button data-type="heading"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5v14M15 5v14M5 12h10"/><path d="M19 8v11M17 8h4"/></svg></span> Tiêu đề</button>
+            <button data-type="todo"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.4 2.4L16 9"/></svg></span> Việc cần làm</button>
+            <button data-type="image"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5-9 9"/></svg></span> Hình ảnh</button>
+            <button data-type="link"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></svg></span> Liên kết</button>
           </div>
         </div>
       </div>
@@ -219,7 +237,7 @@
       </div>
 
       <div class="detail-section">
-        <div class="detail-label"><i data-lucide="image-plus"></i>Hình ảnh</div>
+        <div class="detail-label">🖼 Hình ảnh</div>
         <div id="detailImageWrap"></div>
       </div>
 

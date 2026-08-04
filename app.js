@@ -20,6 +20,24 @@ const loginScreen = $("loginScreen");
 const appEl = $("app");
 const googleLoginBtn = $("googleLoginBtn");
 const logoutBtn = $("logoutBtn");
+const themeToggleBtn = $("themeToggleBtn");
+const themeToggleHeroBtn = $("themeToggleHeroBtn");
+
+/* ---------------- Theme (light/dark) ---------------- */
+function applyTheme(theme) {
+  if (theme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+  try { localStorage.setItem("theme", theme); } catch (e) {}
+}
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+  applyTheme(isDark ? "light" : "dark");
+}
+themeToggleBtn.addEventListener("click", toggleTheme);
+themeToggleHeroBtn.addEventListener("click", toggleTheme);
 const userAvatar = $("userAvatar");
 const userName = $("userName");
 const newRootPageBtn = $("newRootPageBtn");
@@ -556,6 +574,26 @@ function renderBlocks(blocks) {
   });
 }
 
+/* ---------------- Icon set (line-icons, đồng nhất phong cách, không phụ thuộc CDN) ---------------- */
+const ICONS = {
+  text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="16" y2="12"/><line x1="4" y1="18" x2="12" y2="18"/></svg>',
+  heading: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5v14M15 5v14M5 12h10"/><path d="M19 8v11M17 8h4"/></svg>',
+  todo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.4 2.4L16 9"/></svg>',
+  image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5-9 9"/></svg>',
+  link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18"/><path d="M5 4h11l-2.5 4L16 12H5"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
+  expand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg>',
+  grip: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>'
+};
+function iconEl(name, className) {
+  const span = document.createElement("span");
+  span.className = className || "";
+  span.innerHTML = ICONS[name] || "";
+  return span;
+}
+
 function buildBlockEl(block, allBlocks) {
   const row = document.createElement("div");
   row.className = "block";
@@ -576,7 +614,9 @@ function buildBlockEl(block, allBlocks) {
 
   const handle = document.createElement("div");
   handle.className = "block-handle";
-  handle.textContent = "⠿";
+  handle.appendChild(iconEl("grip"));
+
+  const typeIcon = iconEl(block.type === "heading" ? "heading" : block.type, "block-type-icon");
 
   const body = document.createElement("div");
   body.className = "block-body";
@@ -584,11 +624,11 @@ function buildBlockEl(block, allBlocks) {
 
   const del = document.createElement("button");
   del.className = "block-delete";
-  del.textContent = "✕";
+  del.appendChild(iconEl("trash"));
   del.title = "Xóa khối";
   del.addEventListener("click", () => deleteBlock(block));
 
-  row.append(handle, body, del);
+  row.append(handle, typeIcon, body, del);
   return row;
 }
 
@@ -622,7 +662,7 @@ function buildEditableText(block, className, placeholder) {
 }
 
 /* ---------------- Todo: due date, priority, detail modal ---------------- */
-const PRIORITY_LABELS = { high: "🔴 Cao", medium: "🟠 Trung bình", low: "🔵 Thấp" };
+const PRIORITY_LABELS = { high: "Cao", medium: "Trung bình", low: "Thấp" };
 const PRIORITY_ORDER = [null, "low", "medium", "high"];
 
 function formatDueDate(iso) {
@@ -696,7 +736,8 @@ function buildTodo(block, pageIdOverride) {
     const chip = document.createElement("span");
     chip.className = "due-chip " + dueStatus(block.dueDate);
     const timeLabel = block.dueTime ? ` ${block.dueTime}` : "";
-    chip.innerHTML = `📅 ${formatDueDate(block.dueDate)}${timeLabel} `;
+    chip.appendChild(iconEl("calendar", "chip-icon"));
+    chip.append(` ${formatDueDate(block.dueDate)}${timeLabel} `);
     const clearBtn = document.createElement("button");
     clearBtn.textContent = "✕";
     clearBtn.title = "Bỏ hạn";
@@ -708,7 +749,8 @@ function buildTodo(block, pageIdOverride) {
   } else {
     const dateBtn = document.createElement("button");
     dateBtn.className = "todo-meta-btn";
-    dateBtn.textContent = "📅 Thêm hạn";
+    dateBtn.appendChild(iconEl("calendar", "chip-icon"));
+    dateBtn.append(" Thêm hạn");
     dateBtn.addEventListener("click", () => {
       const input = document.createElement("input");
       input.type = "date";
@@ -724,9 +766,17 @@ function buildTodo(block, pageIdOverride) {
 
   const flagBtn = document.createElement("button");
   const currentPriority = block.priority || null;
-  flagBtn.className = "priority-flag" + (currentPriority ? " set" : "");
-  flagBtn.textContent = currentPriority ? PRIORITY_LABELS[currentPriority] : "🚩 Ưu tiên";
+  flagBtn.className = "priority-flag" + (currentPriority ? " set " + currentPriority : "");
   flagBtn.title = "Bấm để đổi mức ưu tiên";
+  if (currentPriority) {
+    const dot = document.createElement("span");
+    dot.className = "priority-dot " + currentPriority;
+    flagBtn.appendChild(dot);
+    flagBtn.append(PRIORITY_LABELS[currentPriority]);
+  } else {
+    flagBtn.appendChild(iconEl("flag", "chip-icon"));
+    flagBtn.append(" Ưu tiên");
+  }
   flagBtn.addEventListener("click", () => {
     const idx = PRIORITY_ORDER.indexOf(currentPriority);
     const next = PRIORITY_ORDER[(idx + 1) % PRIORITY_ORDER.length];
@@ -738,11 +788,17 @@ function buildTodo(block, pageIdOverride) {
   const hasDetail = !!(block.description || images.length || links.length);
   const expandBtn = document.createElement("button");
   expandBtn.className = "detail-expand-btn" + (hasDetail ? " has-content" : "");
-  const badges = [];
-  if (block.description) badges.push("📝");
-  if (images.length) badges.push(`🖼${images.length > 1 ? images.length : ""}`);
-  if (links.length) badges.push(`🔗${links.length > 1 ? links.length : ""}`);
-  expandBtn.textContent = hasDetail ? badges.join(" ") + " Chi tiết" : "⤢ Mở rộng";
+  if (hasDetail) {
+    const badges = [];
+    if (block.description) badges.push("Mô tả");
+    if (images.length) badges.push(`${images.length} ảnh`);
+    if (links.length) badges.push(`${links.length} link`);
+    expandBtn.appendChild(iconEl("expand", "chip-icon"));
+    expandBtn.append(" " + badges.join(" · "));
+  } else {
+    expandBtn.appendChild(iconEl("expand", "chip-icon"));
+    expandBtn.append(" Mở rộng");
+  }
   expandBtn.title = "Xem chi tiết: mô tả, ảnh, link";
   expandBtn.addEventListener("click", () => openDetailModal(pageId, block));
   meta.appendChild(expandBtn);
@@ -1227,7 +1283,8 @@ function buildTodayItem(item) {
   if (item.dueDate) {
     const chip = document.createElement("span");
     chip.className = "due-chip " + dueStatus(item.dueDate);
-    chip.textContent = `📅 ${formatDueDate(item.dueDate)}`;
+    chip.appendChild(iconEl("calendar", "chip-icon"));
+    chip.append(` ${formatDueDate(item.dueDate)}`);
     meta.appendChild(chip);
   }
   if (item.priority) {

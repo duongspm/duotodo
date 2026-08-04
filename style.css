@@ -1,18 +1,19 @@
 :root{
   --bg:#ffffff;
-  --sidebar-bg:#fbfbfa;
-  --text-primary:#37352f;
-  --text-secondary:#9b9a97;
-  --text-tertiary:#787774;
-  --border:#e9e9e7;
-  --hover-bg:#efefee;
-  --selected-bg:#e8e8e7;
-  --accent:#2383e2;
-  --accent-2:#6c5ce7;
-  --accent-soft:#e7f3fe;
-  --success:#2eab6d;
-  --warning:#e0932a;
-  --danger:#eb5757;
+  --sidebar-bg:#fafafa;
+  --bg-elevated:#f4f4f5;
+  --text-primary:#18181b;
+  --text-secondary:#71717a;
+  --text-tertiary:#a1a1aa;
+  --border:#e4e4e7;
+  --hover-bg:#f4f4f5;
+  --selected-bg:#ececee;
+  --accent:#5e6ad2;
+  --accent-2:#8b5cf6;
+  --accent-soft:#eef0fd;
+  --success:#22c55e;
+  --warning:#f5a623;
+  --danger:#ef4444;
 
   --radius-sm:4px;
   --radius:6px;
@@ -25,18 +26,60 @@
   --shadow-sm:0 1px 2px rgba(16,16,16,.06);
   --shadow-md:0 4px 16px rgba(16,16,16,.08);
   --shadow-lg:0 12px 40px rgba(16,16,16,.14);
-  --shadow-glow:0 0 0 3px rgba(35,131,226,.14);
+  --shadow-glow:0 0 0 3px rgba(94,106,210,.16);
 
-  --gradient-accent:linear-gradient(135deg,#2383e2 0%,#6c5ce7 100%);
-  --gradient-hero:radial-gradient(circle at 20% 20%, #eef4ff 0%, transparent 45%),
+  --gradient-accent:linear-gradient(135deg,#5e6ad2 0%,#8b5cf6 100%);
+  --gradient-hero:radial-gradient(circle at 20% 20%, #eef0fd 0%, transparent 45%),
                   radial-gradient(circle at 85% 15%, #f3edff 0%, transparent 40%),
-                  radial-gradient(circle at 50% 100%, #eafff5 0%, transparent 45%),
-                  #fbfbfa;
+                  radial-gradient(circle at 50% 100%, #f5f5f6 0%, transparent 45%),
+                  #fafafa;
 
   --ease-out:cubic-bezier(.16,1,.3,1);
   --sidebar-w:260px;
+  color-scheme: light;
   font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
 }
+
+/* ---------- DARK THEME (Linear / Raycast inspired) ---------- */
+:root[data-theme="dark"]{
+  --bg:#0a0a0b;
+  --sidebar-bg:#0d0d0f;
+  --bg-elevated:#19191c;
+  --text-primary:#f4f4f5;
+  --text-secondary:#9a9aa2;
+  --text-tertiary:#6b6b73;
+  --border:#232327;
+  --hover-bg:#1c1c20;
+  --selected-bg:#222226;
+  --accent:#7071e3;
+  --accent-2:#9b7cf0;
+  --accent-soft:#1c1d3a;
+  --success:#3ecf7e;
+  --warning:#f5a623;
+  --danger:#f87171;
+
+  --shadow-sm:0 1px 2px rgba(0,0,0,.3);
+  --shadow-md:0 4px 20px rgba(0,0,0,.4);
+  --shadow-lg:0 16px 48px rgba(0,0,0,.55);
+  --shadow-glow:0 0 0 3px rgba(112,113,227,.22);
+
+  --gradient-accent:linear-gradient(135deg,#7071e3 0%,#9b7cf0 100%);
+  --gradient-hero:radial-gradient(circle at 20% 20%, rgba(112,113,227,.14) 0%, transparent 45%),
+                  radial-gradient(circle at 85% 15%, rgba(155,124,240,.12) 0%, transparent 40%),
+                  radial-gradient(circle at 50% 100%, rgba(255,255,255,.03) 0%, transparent 45%),
+                  #0a0a0b;
+  color-scheme: dark;
+}
+:root[data-theme="dark"] .hero-grid{
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,.035) 1px, transparent 1px);
+}
+:root[data-theme="dark"] .hero-blob{opacity:.28;}
+:root[data-theme="dark"] .btn-hero{background:#f4f4f5;color:#0a0a0b;}
+:root[data-theme="dark"] .btn-hero:hover{background:#fff;}
+:root[data-theme="dark"] .hero-feature{background:rgba(255,255,255,.04);}
+
 * {
   box-sizing: border-box;
 }
@@ -50,6 +93,7 @@ body {
   font-size: 15px;
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  transition: background .2s ease, color .2s ease;
 }
 .hidden {
   display: none !important;
@@ -193,6 +237,38 @@ button {
   background: var(--hover-bg);
   color: var(--text-primary);
 }
+
+/* ---------- THEME TOGGLE (light/dark) ---------- */
+.theme-icon{
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity .25s var(--ease-out), transform .35s var(--ease-out);
+}
+.theme-icon svg{width:16px;height:16px;}
+#themeToggleBtn, .theme-toggle-hero{ position: relative; }
+.theme-icon-moon{ opacity: 0; transform: rotate(-90deg) scale(.5); }
+.theme-icon-sun{ opacity: 1; transform: rotate(0) scale(1); }
+:root[data-theme="dark"] .theme-icon-sun{ opacity: 0; transform: rotate(90deg) scale(.5); }
+:root[data-theme="dark"] .theme-icon-moon{ opacity: 1; transform: rotate(0) scale(1); }
+
+.theme-toggle-hero{
+  position: fixed;
+  top: 20px; right: 20px;
+  z-index: 5;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  transition: background .15s ease, transform .15s ease, box-shadow .15s ease;
+}
+.theme-toggle-hero:hover{ transform: scale(1.08); box-shadow: var(--shadow-md); }
+.theme-toggle-hero:active{ transform: scale(.94); }
+.theme-toggle-hero .theme-icon svg{width:17px;height:17px;}
 
 /* ---------- ICON CONSISTENCY + HOVER ANIMATION ---------- */
 /* Chuẩn hóa kích thước icon (ghi đè width lộn xộn trong thuộc tính HTML của các <img> icon tùy chỉnh) */
@@ -625,7 +701,7 @@ button {
   margin-top: 10px;
 }
 .delete-page-btn:hover {
-  background: #fde8e8;
+  background: rgba(239,68,68,.13);
   color: var(--danger);
 }
 
@@ -638,51 +714,42 @@ button {
 .block {
   display: flex;
   align-items: flex-start;
-  gap: 6px;
-  padding: 8px 10px 8px 16px;
+  gap: 8px;
+  padding: 9px 10px 9px 14px;
   border-radius: var(--radius-lg, 10px);
   position: relative;
   border: 1px solid transparent;
-  margin-bottom: 5px;
+  margin-bottom: 3px;
   transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
 }
 .block:hover {
-  background: #fbfbfa;
+  background: var(--bg-elevated);
   border-color: var(--border);
-  box-shadow: 0 2px 10px rgba(16,16,16,.05);
 }
 
-/* Vạch màu bên trái + nền nhạt riêng cho từng loại khối, giúp phân biệt nhanh bằng mắt */
+/* Một vạch mảnh bên trái xuất hiện khi hover - tối giản, không phân màu theo loại.
+   Loại khối được nhận biết qua icon nhỏ đầu dòng (xem .block-type-icon trong app.js) thay vì màu sắc. */
 .block::before {
   content: "";
   position: absolute;
-  left: 0; top: 6px; bottom: 6px;
-  width: 3px;
-  border-radius: 3px;
-  background: var(--border);
+  left: 0; top: 8px; bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: transparent;
+  transition: background .15s ease;
 }
-.block:has(.block-heading)   { background: rgba(139,92,246,.045); }
-.block:has(.block-heading)::before { background: #8b5cf6; }
-
-.block:has(.block-todo)      { background: rgba(16,185,129,.045); }
-.block:has(.block-todo)::before { background: #10b981; }
-
-.block:has(.block-image)     { background: rgba(245,158,11,.05); }
-.block:has(.block-image)::before { background: #f59e0b; }
-
-.block:has(.block-link)      { background: rgba(59,130,246,.045); }
-.block:has(.block-link)::before { background: #3b82f6; }
-
-.block:has(.block-heading):hover { background: rgba(139,92,246,.08); }
-.block:has(.block-todo):hover    { background: rgba(16,185,129,.08); }
-.block:has(.block-image):hover   { background: rgba(245,158,11,.09); }
-.block:has(.block-link):hover    { background: rgba(59,130,246,.08); }
-
-/* Trình duyệt chưa hỗ trợ :has() vẫn có border/hover picker bình thường, chỉ mất riêng phần màu vạch/nền theo loại */
-@supports not selector(:has(*)) {
-  .block::before { display: none; }
-  .block { padding-left: 10px; }
+.block:hover::before {
+  background: var(--accent);
 }
+.block-type-icon{
+  width: 15px; height: 15px;
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--text-tertiary);
+  opacity: .8;
+}
+.block-type-icon svg{width:100%;height:100%;}
+.block:hover .block-type-icon{color:var(--accent);opacity:1;}
 .block-handle {
   width: 20px;
   flex-shrink: 0;
@@ -697,6 +764,7 @@ button {
   border-radius: 4px;
   transition: opacity .15s ease, background .12s ease, color .12s ease;
 }
+.block-handle svg{width:14px;height:14px;}
 .block-handle:hover {
   background: var(--hover-bg);
   color: var(--text-primary);
@@ -721,13 +789,17 @@ button {
   border-radius: 4px;
   margin-top: 3px;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: opacity .15s ease, background .12s ease, color .12s ease, transform .12s ease;
 }
+.block-delete svg{width:14px;height:14px;}
 .block:hover .block-delete {
   opacity: 1;
 }
 .block-delete:hover {
-  background: #fde8e8;
+  background: rgba(239,68,68,.12);
   color: var(--danger);
   transform: scale(1.08);
 }
@@ -804,9 +876,12 @@ button {
   padding:2px 6px;
   border-radius:4px;
   opacity:0;
+  display:inline-flex;align-items:center;gap:4px;
 }
 .block:hover .todo-meta-btn{opacity:1;}
 .todo-meta-btn:hover{background:var(--hover-bg);color:var(--text-primary);}
+.chip-icon{width:12px;height:12px;display:inline-flex;flex-shrink:0;}
+.chip-icon svg{width:100%;height:100%;}
 .due-chip{
   font-size:11.5px;font-weight:600;
   padding:2px 8px;
@@ -814,8 +889,8 @@ button {
   display:inline-flex;align-items:center;gap:4px;
   background:var(--hover-bg);color:var(--text-tertiary);
 }
-.due-chip.overdue{background:#fde8e8;color:var(--danger);}
-.due-chip.today{background:#fff1e0;color:#b5650a;}
+.due-chip.overdue{background:rgba(239,68,68,.13);color:var(--danger);}
+.due-chip.today{background:rgba(245,166,35,.15);color:var(--warning);}
 .due-chip.upcoming{background:var(--accent-soft);color:var(--accent);}
 .due-chip button{border:none;background:none;color:inherit;font-size:11px;margin-left:2px;padding:0;}
 .due-date-input{
@@ -824,6 +899,8 @@ button {
   padding:3px 6px;
   font-size:12.5px;
   font-family:inherit;
+  background:var(--bg);
+  color:var(--text-primary);
   transition:border-color .12s ease, box-shadow .12s ease;
 }
 .due-date-input:focus{border-color:var(--accent);box-shadow:var(--shadow-glow);outline:none;}
@@ -833,10 +910,10 @@ button {
   flex-shrink:0;
 }
 .priority-dot.high{background:var(--danger);}
-.priority-dot.medium{background:#e0932a;}
+.priority-dot.medium{background:var(--warning);}
 .priority-dot.low{background:var(--accent);}
 .priority-flag{
-  display:inline-flex;align-items:center;gap:4px;
+  display:inline-flex;align-items:center;gap:5px;
   font-size:11.5px;font-weight:600;
   padding:2px 8px;
   border-radius:10px;
@@ -846,6 +923,9 @@ button {
   opacity:0;
 }
 .block:hover .priority-flag, .priority-flag.set{opacity:1;}
+.priority-flag.high{background:rgba(239,68,68,.13);color:var(--danger);}
+.priority-flag.medium{background:rgba(245,166,35,.15);color:var(--warning);}
+.priority-flag.low{background:var(--accent-soft);color:var(--accent);}
 .detail-expand-btn{
   border:none;background:none;
   font-size:12px;
@@ -853,7 +933,7 @@ button {
   padding:2px 6px;
   border-radius:4px;
   opacity:0;
-  display:inline-flex;align-items:center;gap:3px;
+  display:inline-flex;align-items:center;gap:4px;
 }
 .block:hover .detail-expand-btn, .detail-expand-btn.has-content{opacity:1;}
 .detail-expand-btn:hover{background:var(--hover-bg);color:var(--accent);}
@@ -968,25 +1048,17 @@ button {
   padding: 8px 10px;
   border-radius: 4px;
   font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text-primary);
 }
+.add-block-menu button .chip-icon{width:15px;height:15px;color:var(--text-tertiary);}
 .add-block-menu button:hover {
   background: var(--hover-bg);
 }
-.add-block-menu button.text{
-    background: var(--border);
-}
-.add-block-menu button.heading{
-    background: rgba(139, 92, 246, .045);
-}
-.add-block-menu button.todo{
-    background: rgba(16, 185, 129, .045);
-}
-.add-block-menu button.image{
-    background: rgba(245, 158, 11, .05);
-}
-.add-block-menu button.link{
-    background: rgba(59, 130, 246, .045);
-}
+.add-block-menu button:hover .chip-icon{color:var(--accent);}
+
 /* ---------- TOAST ---------- */
 .toast{
   position:fixed;
@@ -1095,9 +1167,6 @@ button {
   color:var(--text-tertiary);
   text-transform:uppercase;letter-spacing:.03em;
   margin-bottom:8px;
-  display: flex;
-  align-items: center;
-  gap: 0.5em;
 }
 .detail-datetime-row{display:flex;gap:8px;}
 .detail-datetime-row .due-date-input{padding:7px 10px;font-size:13.5px;}
@@ -1200,7 +1269,7 @@ button {
   color:var(--danger);
   border-color:var(--border);
 }
-.detail-delete-btn:hover{background:#fde8e8;border-color:#fde8e8;}
+.detail-delete-btn:hover{background:rgba(239,68,68,.13);border-color:rgba(239,68,68,.13);}
 
 /* ---------- TOAST ---------- */
 /* ---------- OFFLINE BANNER ---------- */
@@ -1255,7 +1324,7 @@ button {
   color: var(--danger);
 }
 .today-group-label.today {
-  color: #b5650a;
+  color: var(--warning);
 }
 .today-item {
   display: flex;
