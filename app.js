@@ -529,6 +529,12 @@ function subscribeToBlocks(pageId) {
     }
     const blocks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderBlocks(blocks);
+    // Tự vá field "uid" cho block cũ tạo trước khi có field này (cần để hiện trong "Việc cần làm hôm nay")
+    snap.docs.forEach((d) => {
+      if (!d.data().uid) {
+        updateDoc(d.ref, { uid: currentUser.uid }).catch(() => {});
+      }
+    });
   }, (err) => {
     console.error(err);
     pageSkeleton.classList.add("hidden");
@@ -541,7 +547,11 @@ function subscribeToBlocks(pageId) {
 let draggedBlockId = null;
 
 function renderBlocks(blocks) {
-  const activeBlockEl = document.activeElement?.closest?.(".block");
+  // Chỉ "bảo vệ" DOM khi người dùng đang THỰC SỰ gõ chữ (contenteditable/input/textarea).
+  // Trước đây bảo vệ luôn khi bấm nút (ưu tiên, ngày hạn...) khiến phải load lại trang mới thấy cập nhật.
+  const active = document.activeElement;
+  const isEditingText = !!active && (active.isContentEditable || active.tagName === "INPUT" || active.tagName === "TEXTAREA");
+  const activeBlockEl = isEditingText ? active.closest?.(".block") : null;
   const activeId = activeBlockEl?.dataset?.id || null;
   const seen = new Set();
 
@@ -550,7 +560,7 @@ function renderBlocks(blocks) {
     const existing = blockElements.get(b.id);
 
     if (existing && b.id === activeId) {
-      // Người dùng đang gõ/tương tác trong khối này - giữ nguyên DOM, chỉ đảm bảo đúng vị trí
+      // Đang gõ trong khối này - giữ nguyên DOM, chỉ đảm bảo đúng vị trí
       if (blocksContainer.children[idx] !== existing) {
         blocksContainer.insertBefore(existing, blocksContainer.children[idx] || null);
       }
@@ -560,10 +570,10 @@ function renderBlocks(blocks) {
     const el = buildBlockEl(b, blocks);
     blockElements.set(b.id, el);
     if (existing && existing.parentNode === blocksContainer) {
-      blocksContainer.replaceChild(el, existing);
-    } else {
-      blocksContainer.insertBefore(el, blocksContainer.children[idx] || null);
+      existing.remove(); // gỡ khỏi vị trí cũ - quan trọng khi thứ tự đã đổi (kéo-thả)
     }
+    // Luôn chèn vào đúng vị trí idx theo thứ tự mới, không "thay tại chỗ" (tránh sai thứ tự sau khi kéo-thả)
+    blocksContainer.insertBefore(el, blocksContainer.children[idx] || null);
   });
 
   [...blockElements.keys()].forEach((id) => {
@@ -597,14 +607,17 @@ function iconEl(name, className) {
 function buildBlockEl(block, allBlocks) {
   const row = document.createElement("div");
   row.className = "block";
-  row.draggable = true;
+  row.draggable = false; // chỉ bật draggable khi bắt đầu kéo từ tay cầm (xem handle.mousedown bên dưới)
   row.dataset.id = block.id;
 
   row.addEventListener("dragstart", () => {
     draggedBlockId = block.id;
     row.classList.add("dragging");
   });
-  row.addEventListener("dragend", () => row.classList.remove("dragging"));
+  row.addEventListener("dragend", () => {
+    row.classList.remove("dragging");
+    row.draggable = false;
+  });
   row.addEventListener("dragover", (e) => e.preventDefault());
   row.addEventListener("drop", (e) => {
     e.preventDefault();
@@ -615,6 +628,8 @@ function buildBlockEl(block, allBlocks) {
   const handle = document.createElement("div");
   handle.className = "block-handle";
   handle.appendChild(iconEl("grip"));
+  handle.addEventListener("mousedown", () => { row.draggable = true; });
+  handle.addEventListener("mouseup", () => { row.draggable = false; });
 
   const typeIcon = iconEl(block.type === "heading" ? "heading" : block.type, "block-type-icon");
 
@@ -1126,7 +1141,7 @@ async function addBlock(type) {
   if (!currentPageId) return;
   const snap = await getDocs(blocksCol(currentPageId));
   const order = snap.size;
-  const base = { type, order, createdAt: serverTimestamp() };
+  const base = { type, order, uid: currentUser.uid, createdAt: serverTimestamp() };
   if (type === "todo") {
     Object.assign(base, {
       content: "", checked: false, dueDate: null, dueTime: null, priority: null,
@@ -1199,6 +1214,7 @@ function subscribeToday() {
   if (unsubToday) unsubToday();
   const q = query(
     collectionGroup(db, "blocks"),
+    where("uid", "==", currentUser.uid),
     where("type", "==", "todo"),
     where("checked", "==", false)
   );
@@ -1206,9 +1222,7 @@ function subscribeToday() {
     const items = [];
     snap.forEach((d) => {
       const pageId = d.ref.parent.parent.id;
-      if (d.ref.path.startsWith(`users/${currentUser.uid}/`)) {
-        items.push({ id: d.id, pageId, ...d.data() });
-      }
+      items.push({ id: d.id, pageId, ...d.data() });
     });
     renderTodayGroups(items);
   }, (err) => {
