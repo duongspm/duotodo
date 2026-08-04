@@ -56,10 +56,15 @@ const detailModal = $("detailModal");
 const detailCloseBtn = $("detailCloseBtn");
 const detailCheckbox = $("detailCheckbox");
 const detailTitle = $("detailTitle");
+const detailDueDate = $("detailDueDate");
+const detailDueTime = $("detailDueTime");
+const detailToolbar = $("detailToolbar");
 const detailDescription = $("detailDescription");
+const detailSaveDescBtn = $("detailSaveDescBtn");
 const detailImageWrap = $("detailImageWrap");
 const detailLinkWrap = $("detailLinkWrap");
 const detailImageFileInput = $("detailImageFileInput");
+const detailDeleteBtn = $("detailDeleteBtn");
 
 /* ---------------- State ---------------- */
 let currentUser = null;
@@ -69,6 +74,7 @@ let currentPageId = null;
 let unsubPages = null;
 let unsubBlocks = null;
 let unsubToday = null;
+let blockElements = new Map(); // blockId -> rendered DOM element, for reconciled re-render
 let pendingImageBlockId = null;
 let pagesFirstLoadDone = false;
 let pendingPageDeletions = new Map(); // pageId -> { timeoutId, title }
@@ -149,8 +155,17 @@ async function uploadImageToBlob(file) {
     body: compressed
   });
   if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Tải ảnh lên thất bại");
+    const text = await res.text().catch(() => "");
+    let message = `Tải ảnh lên thất bại (HTTP ${res.status})`;
+    try {
+      const data = JSON.parse(text);
+      if (data.error) message = data.error;
+    } catch (_) {
+      // response không phải JSON - thường là do /api/upload không tồn tại (404)
+      // hoặc đang test bằng Live Server, không chạy được serverless function
+      if (res.status === 404) message = "Không tìm thấy /api/upload (404) - kiểm tra đã deploy đủ thư mục api/ và package.json lên Vercel chưa, hoặc bạn đang test bằng Live Server (không chạy được API route).";
+    }
+    throw new Error(message);
   }
   return res.json(); // { url, ... }
 }
@@ -310,7 +325,7 @@ function buildNode(page) {
   const actions = document.createElement("span");
   actions.className = "node-actions";
   const addChildBtn = document.createElement("button");
-  addChildBtn.textContent = "＋";
+  addChildBtn.textContent = "➕";
   addChildBtn.title = "Thêm trang con";
   addChildBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -318,7 +333,7 @@ function buildNode(page) {
     createPage(page.id);
   });
   const delBtn = document.createElement("button");
-  delBtn.textContent = "🗑";
+  delBtn.textContent = "❌";
   delBtn.title = "Xóa trang";
   delBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -397,7 +412,10 @@ async function deletePageRecursive(pageId) {
   for (const b of blocksSnap.docs) {
     const data = b.data();
     if (data.type === "image" && data.storagePath) deleteImageFromBlob(data.storagePath);
-    if (data.type === "todo" && data.descImageUrl) deleteImageFromBlob(data.descImageUrl);
+    if (data.type === "todo") {
+          const imgs = data.descImages || (data.descImageUrl ? [data.descImageUrl] : []);
+          imgs.forEach((url) => deleteImageFromBlob(url));
+        }
   }
   const batch = writeBatch(db);
   blocksSnap.forEach((b) => batch.delete(b.ref));
@@ -452,8 +470,9 @@ function showEmptyPageState() {
   todayNavBtn.classList.remove("active");
   emptyState.classList.remove("hidden");
   if (unsubBlocks) unsubBlocks();
-  if (unsubToday) unsubToday();
-  blocksContainer.innerHTML = "";
+    if (unsubToday) unsubToday();
+    blockElements.clear();
+    blocksContainer.innerHTML = "";
   renderTree();
   closeSidebarOnMobile();
 }
@@ -480,6 +499,8 @@ function openPage(pageId) {
 
 function subscribeToBlocks(pageId) {
   if (unsubBlocks) unsubBlocks();
+  blockElements.clear();
+  blocksContainer.innerHTML = ""; // xóa DOM block của trang cũ, tránh bị lặp khi chuyển trang
   let firstLoad = true;
   const q = query(blocksCol(pageId), orderBy("order", "asc"));
   unsubBlocks = onSnapshot(q, (snap) => {
@@ -502,8 +523,37 @@ function subscribeToBlocks(pageId) {
 let draggedBlockId = null;
 
 function renderBlocks(blocks) {
-  blocksContainer.innerHTML = "";
-  blocks.forEach((b) => blocksContainer.appendChild(buildBlockEl(b, blocks)));
+  const activeBlockEl = document.activeElement?.closest?.(".block");
+  const activeId = activeBlockEl?.dataset?.id || null;
+  const seen = new Set();
+
+  blocks.forEach((b, idx) => {
+    seen.add(b.id);
+    const existing = blockElements.get(b.id);
+
+    if (existing && b.id === activeId) {
+      // Người dùng đang gõ/tương tác trong khối này - giữ nguyên DOM, chỉ đảm bảo đúng vị trí
+      if (blocksContainer.children[idx] !== existing) {
+        blocksContainer.insertBefore(existing, blocksContainer.children[idx] || null);
+      }
+      return;
+    }
+
+    const el = buildBlockEl(b, blocks);
+    blockElements.set(b.id, el);
+    if (existing && existing.parentNode === blocksContainer) {
+      blocksContainer.replaceChild(el, existing);
+    } else {
+      blocksContainer.insertBefore(el, blocksContainer.children[idx] || null);
+    }
+  });
+
+  [...blockElements.keys()].forEach((id) => {
+    if (!seen.has(id)) {
+      blockElements.get(id)?.remove();
+      blockElements.delete(id);
+    }
+  });
 }
 
 function buildBlockEl(block, allBlocks) {
@@ -599,19 +649,32 @@ function buildTodo(block, pageIdOverride) {
   const wrap = document.createElement("div");
   wrap.className = "block-todo" + (block.checked ? " checked" : "");
 
-  const top = document.createElement("div");
-  top.style.display = "flex";
-  top.style.alignItems = "flex-start";
-  top.style.gap = "8px";
-  top.style.width = "100%";
+  // Ảnh bìa (Trello-style cover): dùng ảnh đầu tiên trong descImages, hoặc descImageUrl cũ (tương thích ngược)
+  const images = block.descImages || (block.descImageUrl ? [block.descImageUrl] : []);
+  if (images[0]) {
+    const cover = document.createElement("div");
+    cover.className = "todo-cover";
+    cover.style.backgroundImage = `url("${images[0]}")`;
+    cover.addEventListener("click", () => openDetailModal(pageId, block));
+    wrap.appendChild(cover);
+  }
 
+  const top = document.createElement("div");
+  top.className = "todo-top";
+
+  const checkboxWrap = document.createElement("span");
+  checkboxWrap.className = "checkbox-pop";
   const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.checked = !!block.checked;
   checkbox.addEventListener("change", () => {
     wrap.classList.toggle("checked", checkbox.checked);
+    checkboxWrap.classList.remove("pop");
+    void checkboxWrap.offsetWidth;
+    checkboxWrap.classList.add("pop");
     setTodoChecked(pageId, block.id, checkbox.checked);
   });
+  checkboxWrap.appendChild(checkbox);
 
   const rightCol = document.createElement("div");
   rightCol.style.flex = "1";
@@ -632,12 +695,13 @@ function buildTodo(block, pageIdOverride) {
   if (block.dueDate) {
     const chip = document.createElement("span");
     chip.className = "due-chip " + dueStatus(block.dueDate);
-    chip.innerHTML = `📅 ${formatDueDate(block.dueDate)} `;
+    const timeLabel = block.dueTime ? ` ${block.dueTime}` : "";
+    chip.innerHTML = `📅 ${formatDueDate(block.dueDate)}${timeLabel} `;
     const clearBtn = document.createElement("button");
     clearBtn.textContent = "✕";
     clearBtn.title = "Bỏ hạn";
     clearBtn.addEventListener("click", () => {
-      updateDoc(blockRef(pageId, block.id), { dueDate: null });
+      updateDoc(blockRef(pageId, block.id), { dueDate: null, dueTime: null });
     });
     chip.appendChild(clearBtn);
     meta.appendChild(chip);
@@ -670,16 +734,21 @@ function buildTodo(block, pageIdOverride) {
   });
   meta.appendChild(flagBtn);
 
-  const hasDetail = !!(block.description || block.descImageUrl || block.descLinkUrl);
+  const links = block.descLinks || (block.descLinkUrl ? [{ url: block.descLinkUrl, label: block.descLinkLabel }] : []);
+  const hasDetail = !!(block.description || images.length || links.length);
   const expandBtn = document.createElement("button");
   expandBtn.className = "detail-expand-btn" + (hasDetail ? " has-content" : "");
-  expandBtn.textContent = hasDetail ? "📄 Chi tiết" : "⤢ Mở rộng";
+  const badges = [];
+  if (block.description) badges.push("📝");
+  if (images.length) badges.push(`🖼${images.length > 1 ? images.length : ""}`);
+  if (links.length) badges.push(`🔗${links.length > 1 ? links.length : ""}`);
+  expandBtn.textContent = hasDetail ? badges.join(" ") + " Chi tiết" : "⤢ Mở rộng";
   expandBtn.title = "Xem chi tiết: mô tả, ảnh, link";
   expandBtn.addEventListener("click", () => openDetailModal(pageId, block));
   meta.appendChild(expandBtn);
 
   rightCol.append(text, meta);
-  top.append(checkbox, rightCol);
+  top.append(checkboxWrap, rightCol);
   wrap.appendChild(top);
   return wrap;
 }
@@ -689,10 +758,15 @@ function openDetailModal(pageId, block) {
   detailContext = { pageId, blockId: block.id };
   detailCheckbox.checked = !!block.checked;
   detailTitle.textContent = block.content || "";
-  detailDescription.value = block.description || "";
-  renderDetailImage(block.descImageUrl || null);
-  renderDetailLink(block.descLinkUrl || null, block.descLinkLabel || null);
+  detailDescription.innerHTML = block.description || "";
+  detailDueDate.value = block.dueDate || "";
+  detailDueTime.value = block.dueTime || "";
+  const images = block.descImages || (block.descImageUrl ? [block.descImageUrl] : []);
+  const links = block.descLinks || (block.descLinkUrl ? [{ url: block.descLinkUrl, label: block.descLinkLabel }] : []);
+  renderDetailImages(images);
+  renderDetailLinks(links);
   detailModal.classList.remove("hidden");
+  setTimeout(() => detailTitle.focus(), 50);
 }
 function closeDetailModal() {
   detailModal.classList.add("hidden");
@@ -700,6 +774,9 @@ function closeDetailModal() {
 }
 detailCloseBtn.addEventListener("click", closeDetailModal);
 detailModal.addEventListener("click", (e) => { if (e.target === detailModal) closeDetailModal(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !detailModal.classList.contains("hidden")) closeDetailModal();
+});
 
 detailCheckbox.addEventListener("change", () => {
   if (!detailContext) return;
@@ -713,15 +790,54 @@ const saveDetailTitle = debounce(() => {
 detailTitle.addEventListener("input", saveDetailTitle);
 detailTitle.addEventListener("keydown", (e) => { if (e.key === "Enter") e.preventDefault(); });
 
+/* ---- Due date + time ---- */
+function saveDetailDueDateTime() {
+  if (!detailContext) return;
+  updateDoc(blockRef(detailContext.pageId, detailContext.blockId), {
+    dueDate: detailDueDate.value || null,
+    dueTime: detailDueDate.value ? (detailDueTime.value || null) : null
+  });
+}
+detailDueDate.addEventListener("change", saveDetailDueDateTime);
+detailDueTime.addEventListener("change", saveDetailDueDateTime);
+
+/* ---- Rich text description (định dạng nhẹ bằng execCommand, không cần thư viện ngoài
+   vì project không dùng bundler - Quill/TipTap cần build step riêng) ---- */
+detailToolbar.querySelectorAll("button[data-cmd]").forEach((btn) => {
+  btn.addEventListener("mousedown", (e) => e.preventDefault()); // giữ focus/selection trong vùng soạn thảo
+  btn.addEventListener("click", () => {
+    const cmd = btn.dataset.cmd;
+    if (cmd === "createLink") {
+      const url = prompt("Dán URL:");
+      if (url) document.execCommand("createLink", false, url);
+    } else {
+      document.execCommand(cmd, false, null);
+    }
+    detailDescription.focus();
+    flushSaveDetailDescription();
+  });
+});
 const saveDetailDescription = debounce(() => {
   if (!detailContext) return;
-  updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { description: detailDescription.value });
+  updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { description: detailDescription.innerHTML });
 }, 500);
+function flushSaveDetailDescription() {
+  if (!detailContext) return;
+  updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { description: detailDescription.innerHTML });
+}
 detailDescription.addEventListener("input", saveDetailDescription);
+detailDescription.addEventListener("blur", flushSaveDetailDescription); // lưu ngay khi click ra ngoài vùng mô tả
+detailSaveDescBtn.addEventListener("click", () => {
+  flushSaveDetailDescription();
+  showToast("Đã lưu mô tả");
+});
 
-function renderDetailImage(url) {
+/* ---- Nhiều ảnh ---- */
+function renderDetailImages(images) {
   detailImageWrap.innerHTML = "";
-  if (url) {
+  const grid = document.createElement("div");
+  grid.className = "detail-image-grid";
+  images.forEach((url) => {
     const wrap = document.createElement("div");
     wrap.className = "detail-image-preview";
     const img = document.createElement("img");
@@ -732,86 +848,129 @@ function renderDetailImage(url) {
     removeBtn.title = "Xóa ảnh";
     removeBtn.addEventListener("click", async () => {
       if (!detailContext) return;
+      const ok = await showConfirm("Xóa ảnh này?", "Ảnh sẽ bị xóa vĩnh viễn khỏi thẻ.", { danger: true, confirmText: "Xóa" });
+      if (!ok) return;
       deleteImageFromBlob(url);
-      await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descImageUrl: null });
-      renderDetailImage(null);
+      const next = images.filter((u) => u !== url);
+      await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descImages: next });
+      renderDetailImages(next);
     });
     wrap.append(img, removeBtn);
-    detailImageWrap.appendChild(wrap);
-  } else {
-    const btn = document.createElement("button");
-    btn.className = "btn";
-    btn.textContent = "🏞️ Thêm ảnh";
-    btn.addEventListener("click", () => detailImageFileInput.click());
-    detailImageWrap.appendChild(btn);
-  }
+    grid.appendChild(wrap);
+  });
+  detailImageWrap.appendChild(grid);
+
+  const addBtn = document.createElement("button");
+  addBtn.className = "btn";
+  addBtn.textContent = "🖼 Thêm ảnh";
+  addBtn.addEventListener("click", () => detailImageFileInput.click());
+  detailImageWrap.appendChild(addBtn);
 }
 
 detailImageFileInput.addEventListener("change", async () => {
   const file = detailImageFileInput.files[0];
   detailImageFileInput.value = "";
   if (!file || !detailContext) return;
-  detailImageWrap.innerHTML = '<div class="detail-image-uploading">Đang tải ảnh lên...</div>';
+  const uploadingMsg = document.createElement("div");
+  uploadingMsg.className = "detail-image-uploading";
+  uploadingMsg.textContent = "Đang tải ảnh lên...";
+  detailImageWrap.appendChild(uploadingMsg);
   try {
     const blob = await uploadImageToBlob(file);
-    await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descImageUrl: blob.url });
-    renderDetailImage(blob.url);
+    const snap = await getDocs(blocksCol(detailContext.pageId));
+    const current = snap.docs.find((d) => d.id === detailContext.blockId)?.data() || {};
+    const images = current.descImages || (current.descImageUrl ? [current.descImageUrl] : []);
+    const next = [...images, blob.url];
+    await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descImages: next });
+    renderDetailImages(next);
   } catch (err) {
     console.error(err);
     showToast("Lỗi tải ảnh: " + err.message);
-    renderDetailImage(null);
+    uploadingMsg.remove();
   }
 });
 
-function renderDetailLink(url, label) {
+/* ---- Nhiều link ---- */
+function renderDetailLinks(links) {
   detailLinkWrap.innerHTML = "";
-  if (url) {
+  links.forEach((link, idx) => {
     const card = document.createElement("div");
     card.className = "detail-link-card";
     const a = document.createElement("a");
-    a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
-    a.textContent = label || url;
+    a.href = link.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+    a.textContent = link.label || link.url;
     const removeBtn = document.createElement("button");
-    removeBtn.textContent = "✕ Bỏ link";
+    removeBtn.textContent = "✕";
+    removeBtn.title = "Bỏ link";
     removeBtn.addEventListener("click", async () => {
       if (!detailContext) return;
-      await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descLinkUrl: null, descLinkLabel: null });
-      renderDetailLink(null, null);
+      const ok = await showConfirm("Bỏ liên kết này?", "", { danger: true, confirmText: "Bỏ link" });
+      if (!ok) return;
+      const next = links.filter((_, i) => i !== idx);
+      await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descLinks: next });
+      renderDetailLinks(next);
     });
     card.append(a, removeBtn);
     detailLinkWrap.appendChild(card);
-  } else {
-    const row = document.createElement("div");
-    row.className = "link-edit-row";
-    const input = document.createElement("input");
-    input.placeholder = "Dán URL, ví dụ https://...";
-    const btn = document.createElement("button");
-    btn.className = "btn";
-    btn.textContent = "Lưu";
-    btn.addEventListener("click", async () => {
-      if (!detailContext) return;
-      let cleanUrl = input.value.trim();
-      if (!cleanUrl) return;
-      if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = "https://" + cleanUrl;
-      let hostname = cleanUrl;
-      try { hostname = new URL(cleanUrl).hostname; } catch (_) {}
-      await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descLinkUrl: cleanUrl, descLinkLabel: hostname });
-      renderDetailLink(cleanUrl, hostname);
-    });
-    row.append(input, btn);
-    detailLinkWrap.appendChild(row);
-  }
+  });
+
+  const row = document.createElement("div");
+  row.className = "link-edit-row";
+  const input = document.createElement("input");
+  input.placeholder = "Dán URL, ví dụ https://...";
+  const btn = document.createElement("button");
+  btn.className = "btn";
+  btn.textContent = "＋ Thêm link";
+  btn.addEventListener("click", async () => {
+    if (!detailContext) return;
+    let cleanUrl = input.value.trim();
+    if (!cleanUrl) return;
+    if (!/^https?:\/\//i.test(cleanUrl)) cleanUrl = "https://" + cleanUrl;
+    let hostname = cleanUrl;
+    try { hostname = new URL(cleanUrl).hostname; } catch (_) {}
+    const next = [...links, { url: cleanUrl, label: hostname }];
+    await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descLinks: next });
+    renderDetailLinks(next);
+    input.value = "";
+  });
+  row.append(input, btn);
+  detailLinkWrap.appendChild(row);
 }
+
+detailDeleteBtn.addEventListener("click", async () => {
+  if (!detailContext) return;
+  const ok = await showConfirm("Xóa thẻ này?", "Toàn bộ nội dung, ảnh và link đính kèm sẽ bị xóa vĩnh viễn.", { danger: true, confirmText: "Xóa thẻ" });
+  if (!ok) return;
+  const { pageId, blockId } = detailContext;
+  const snap = await getDocs(blocksCol(pageId));
+  const blockDoc = snap.docs.find((d) => d.id === blockId);
+  closeDetailModal();
+  if (!blockDoc) return;
+  await deleteBlockById(pageId, { id: blockId, ...blockDoc.data() });
+});
 
 /* ---------------- Image / Link blocks (page content) ---------------- */
 function buildImage(block) {
   const wrap = document.createElement("div");
   wrap.className = "block-image";
   if (block.imageUrl) {
+    const frame = document.createElement("div");
+    frame.className = "block-image-frame";
     const img = document.createElement("img");
     img.src = block.imageUrl;
     img.alt = "";
-    wrap.appendChild(img);
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "detail-image-remove block-image-remove";
+    removeBtn.textContent = "✕";
+    removeBtn.title = "Xóa ảnh";
+    removeBtn.addEventListener("click", async () => {
+      const ok = await showConfirm("Xóa ảnh này?", "Ảnh sẽ bị xóa vĩnh viễn.", { danger: true, confirmText: "Xóa" });
+      if (!ok) return;
+      if (block.storagePath) deleteImageFromBlob(block.storagePath);
+      await updateDoc(blockRef(currentPageId, block.id), { imageUrl: "", storagePath: "" });
+    });
+    frame.append(img, removeBtn);
+    wrap.appendChild(frame);
   } else {
     const box = document.createElement("div");
     box.className = "block-image-empty";
@@ -914,8 +1073,8 @@ async function addBlock(type) {
   const base = { type, order, createdAt: serverTimestamp() };
   if (type === "todo") {
     Object.assign(base, {
-      content: "", checked: false, dueDate: null, priority: null,
-      description: "", descImageUrl: null, descLinkUrl: null, descLinkLabel: null
+      content: "", checked: false, dueDate: null, dueTime: null, priority: null,
+      description: "", descImages: [], descLinks: []
     });
   } else if (type === "image") Object.assign(base, { imageUrl: "" });
   else if (type === "link") Object.assign(base, { url: "", label: "" });
@@ -931,11 +1090,18 @@ async function addBlock(type) {
 async function deleteBlock(block) {
   const ok = await showConfirm("Xóa khối này?", "Nội dung sẽ bị xóa vĩnh viễn.", { danger: true, confirmText: "Xóa" });
   if (!ok) return;
+  await deleteBlockById(currentPageId, block);
+}
+
+async function deleteBlockById(pageId, block) {
   if (block.type === "image" && block.storagePath) deleteImageFromBlob(block.storagePath);
-  if (block.type === "todo" && block.descImageUrl) deleteImageFromBlob(block.descImageUrl);
-  await deleteDoc(blockRef(currentPageId, block.id));
   if (block.type === "todo") {
-    await updateDoc(doc(db, "users", currentUser.uid, "pages", currentPageId), {
+    const images = block.descImages || (block.descImageUrl ? [block.descImageUrl] : []);
+    images.forEach((url) => deleteImageFromBlob(url));
+  }
+  await deleteDoc(blockRef(pageId, block.id));
+  if (block.type === "todo") {
+    await updateDoc(doc(db, "users", currentUser.uid, "pages", pageId), {
       todoTotalCount: increment(-1),
       todoOpenCount: increment(block.checked ? 0 : -1)
     });
