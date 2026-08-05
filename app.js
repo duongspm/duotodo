@@ -22,6 +22,11 @@ const googleLoginBtn = $("googleLoginBtn");
 const logoutBtn = $("logoutBtn");
 const themeToggleBtn = $("themeToggleBtn");
 const themeToggleHeroBtn = $("themeToggleHeroBtn");
+const helpFabBtn = $("helpFabBtn");
+const helpModal = $("helpModal");
+const helpCloseBtn = $("helpCloseBtn");
+const helpNavBtns = document.querySelectorAll(".help-nav-btn");
+const helpSections = document.querySelectorAll(".help-section");
 
 /* ---------------- Theme (light/dark) ---------------- */
 function applyTheme(theme) {
@@ -38,6 +43,27 @@ function toggleTheme() {
 }
 themeToggleBtn.addEventListener("click", toggleTheme);
 themeToggleHeroBtn.addEventListener("click", toggleTheme);
+
+/* ---------------- Help / hướng dẫn sử dụng ---------------- */
+function openHelpModal() {
+  helpModal.classList.remove("hidden");
+}
+function closeHelpModal() {
+  helpModal.classList.add("hidden");
+}
+helpFabBtn.addEventListener("click", openHelpModal);
+helpCloseBtn.addEventListener("click", closeHelpModal);
+helpModal.addEventListener("click", (e) => { if (e.target === helpModal) closeHelpModal(); });
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !helpModal.classList.contains("hidden")) closeHelpModal();
+});
+helpNavBtns.forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const target = btn.dataset.helpSection;
+    helpNavBtns.forEach((b) => b.classList.toggle("active", b === btn));
+    helpSections.forEach((s) => s.classList.toggle("active", s.dataset.helpContent === target));
+  });
+});
 const userAvatar = $("userAvatar");
 const userName = $("userName");
 const newRootPageBtn = $("newRootPageBtn");
@@ -709,7 +735,8 @@ function buildTodo(block, pageIdOverride) {
   if (images[0]) {
     const cover = document.createElement("div");
     cover.className = "todo-cover";
-    cover.style.backgroundImage = `url("${images[0]}")`;
+    cover.style.setProperty("--cover-img", `url("${images[0]}")`);
+    cover.style.backgroundImage = `var(--cover-img)`;
     cover.addEventListener("click", () => openDetailModal(pageId, block));
     wrap.appendChild(cover);
   }
@@ -902,7 +929,17 @@ detailSaveDescBtn.addEventListener("click", () => {
   flushSaveDetailDescription();
   showToast("Đã lưu mô tả");
 });
+function openDetailImageGallery(url, images) {
+  if (typeof Fancybox === "undefined") return;
 
+  const startIndex = images.indexOf(url);
+  Fancybox.show(
+    images.map((src) => ({ src, type: "image" })),
+    {
+      startIndex: startIndex >= 0 ? startIndex : 0
+    }
+  );
+}
 /* ---- Nhiều ảnh ---- */
 function renderDetailImages(images) {
   detailImageWrap.innerHTML = "";
@@ -913,6 +950,10 @@ function renderDetailImages(images) {
     wrap.className = "detail-image-preview";
     const img = document.createElement("img");
     img.src = url;
+    img.alt = "Ảnh đính kèm";
+    img.style.cursor = "pointer";
+    img.addEventListener("click", () => openDetailImageGallery(url, images));
+
     const removeBtn = document.createElement("button");
     removeBtn.className = "detail-image-remove";
     removeBtn.textContent = "✕";
@@ -933,7 +974,7 @@ function renderDetailImages(images) {
 
   const addBtn = document.createElement("button");
   addBtn.className = "btn";
-  addBtn.textContent = "🖼 Thêm ảnh";
+  addBtn.textContent = "🏞️ Thêm ảnh";
   addBtn.addEventListener("click", () => detailImageFileInput.click());
   detailImageWrap.appendChild(addBtn);
 }
@@ -1030,6 +1071,10 @@ function buildImage(block) {
     const img = document.createElement("img");
     img.src = block.imageUrl;
     img.alt = "";
+    img.style.cursor = "pointer";
+    img.addEventListener("click", () => {
+      openDetailImageGallery(block.imageUrl, [block.imageUrl]);
+    });
     const removeBtn = document.createElement("button");
     removeBtn.className = "detail-image-remove block-image-remove";
     removeBtn.textContent = "✕";
@@ -1096,7 +1141,6 @@ function buildLink(block) {
     a.target = "_blank";
     a.rel = "noopener noreferrer";
     a.innerHTML = `
-      <span class="link-icon">🔗</span>
       <span class="link-info">
         <span class="link-label">${escapeHtml(block.label || hostname)}</span>
         <span class="link-url">${escapeHtml(block.url)}</span>

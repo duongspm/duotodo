@@ -61,6 +61,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js" defer></script>
+
 </head>
 <body>
 
@@ -78,7 +82,7 @@
     <div class="hero-content">
       <div class="hero-badge">✨ Ghi chú &amp; to-do, mọi lúc mọi nơi</div>
       <h1 class="hero-title">Sắp xếp công việc<br>rõ ràng như <span class="hero-title-accent">tư duy của bạn</span></h1>
-      <p class="hero-desc">Trang lồng nhau kiểu Notion, việc cần làm có hạn &amp; độ ưu tiên, ảnh và link đính kèm — đồng bộ tức thì trên mọi thiết bị.</p>
+      <p class="hero-desc">Trang lồng nhau kiểu , việc cần làm có hạn &amp; độ ưu tiên, ảnh và link đính kèm — đồng bộ tức thì trên mọi thiết bị.</p>
 
       <button id="googleLoginBtn" class="btn-hero">
         <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.9A9 9 0 0 0 0 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .9 4.97l3.05 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
@@ -182,6 +186,10 @@
         </div>
       </div>
     </main>
+
+    <button id="helpFabBtn" class="help-fab" title="Hướng dẫn sử dụng">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.25"/><path d="M9.3 9.3a2.7 2.7 0 0 1 5.2.9c0 1.6-2.3 2-2.5 3.4"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></svg>
+    </button>
   </div>
 
   <!-- Hidden file input for image upload -->
@@ -237,7 +245,7 @@
       </div>
 
       <div class="detail-section">
-        <div class="detail-label">🖼 Hình ảnh</div>
+        <div class="detail-label">🖼️ Hình ảnh</div>
         <div id="detailImageWrap"></div>
       </div>
 
@@ -247,6 +255,152 @@
       </div>
 
       <button id="detailDeleteBtn" class="btn btn-danger detail-delete-btn">🗑 Xóa thẻ này</button>
+    </div>
+  </div>
+
+<!-- Modal Hướng dẫn sử dụng -->
+  <div id="helpModal" class="modal-overlay hidden">
+    <div class="modal-card help-card">
+      <button id="helpCloseBtn" class="icon-btn detail-close-btn" title="Đóng">✕</button>
+      <div class="help-header">
+        <div class="help-header-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.25"/><path d="M9.3 9.3a2.7 2.7 0 0 1 5.2.9c0 1.6-2.3 2-2.5 3.4"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></svg>
+        </div>
+        <div>
+          <h2 class="help-title">Hướng dẫn sử dụng</h2>
+          <p class="help-subtitle">Mọi thứ bạn cần biết để dùng app hiệu quả</p>
+        </div>
+      </div>
+
+      <div class="help-body">
+        <nav class="help-nav">
+          <button class="help-nav-btn active" data-help-section="overview">
+            <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
+            Tổng quan
+          </button>
+          <button class="help-nav-btn" data-help-section="blocks">
+            <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="16" y2="12"/><line x1="4" y1="18" x2="12" y2="18"/></svg></span>
+            Trang &amp; khối
+          </button>
+          <button class="help-nav-btn" data-help-section="todo">
+            <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.4 2.4L16 9"/></svg></span>
+            Việc cần làm
+          </button>
+          <button class="help-nav-btn" data-help-section="tips">
+            <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.45.9 1.15.9 1.9V16h5.4v-.3c0-.75.3-1.45.9-1.9A6 6 0 0 0 12 3z"/></svg></span>
+            Mẹo sử dụng
+          </button>
+        </nav>
+
+        <div class="help-content">
+          <!-- TỔNG QUAN -->
+          <section class="help-section active" data-help-content="overview">
+            <p class="help-lead">App tổ chức nội dung theo <strong>Trang</strong> — mỗi trang chứa nhiều <strong>Khối</strong> nội dung xếp theo thứ tự, có thể là văn bản, việc cần làm, ảnh hoặc link.</p>
+
+            <div class="help-flow">
+              <div class="help-flow-step">
+                <span class="help-flow-num">1</span>
+                <div><strong>Tạo trang</strong><p>Bấm "＋ Trang mới" ở sidebar. Có thể tạo trang con lồng bên trong trang khác (bấm nút ＋ khi hover vào 1 trang).</p></div>
+              </div>
+              <div class="help-flow-step">
+                <span class="help-flow-num">2</span>
+                <div><strong>Thêm khối</strong><p>Trong trang, bấm "＋ Thêm khối" ở cuối nội dung, chọn loại khối muốn thêm.</p></div>
+              </div>
+              <div class="help-flow-step">
+                <span class="help-flow-num">3</span>
+                <div><strong>Đồng bộ tự động</strong><p>Mọi thay đổi tự lưu và đồng bộ real-time — mở trên điện thoại hay máy tính khác đều thấy ngay, không cần bấm Lưu.</p></div>
+              </div>
+            </div>
+
+            <div class="help-callout">
+              <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.25"/><path d="M12 8v5M12 16h.01"/></svg></span>
+              <div><strong>Ví dụ thực tế:</strong> tạo trang "Dự án Website" → bên trong thêm tiêu đề "Việc cần làm", vài khối việc cần làm kèm hạn chót, 1 khối ảnh chụp thiết kế, 1 khối link tài liệu tham khảo.</div>
+            </div>
+          </section>
+
+          <!-- TRANG & KHỐI -->
+          <section class="help-section" data-help-content="blocks">
+            <p class="help-lead">5 loại khối hiện có, mỗi loại phục vụ 1 mục đích khác nhau:</p>
+
+            <div class="help-block-item">
+              <span class="help-block-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="16" y2="12"/><line x1="4" y1="18" x2="12" y2="18"/></svg></span>
+              <div><strong>Văn bản</strong><p>Đoạn chữ tự do, dùng để ghi chú, mô tả, ý tưởng.</p></div>
+            </div>
+            <div class="help-block-item">
+              <span class="help-block-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 5v14M15 5v14M5 12h10"/><path d="M19 8v11M17 8h4"/></svg></span>
+              <div><strong>Tiêu đề</strong><p>Chữ to, đậm — dùng để chia mục trong 1 trang dài cho dễ đọc.</p></div>
+            </div>
+            <div class="help-block-item">
+              <span class="help-block-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8.5 12l2.4 2.4L16 9"/></svg></span>
+              <div><strong>Việc cần làm</strong><p>Checkbox có thể tick xong, đặt hạn, độ ưu tiên — xem chi tiết ở mục "Việc cần làm" bên trái.</p></div>
+            </div>
+            <div class="help-block-item">
+              <span class="help-block-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5-9 9"/></svg></span>
+              <div><strong>Hình ảnh</strong><p>Upload trực tiếp hoặc dán link ảnh có sẵn. Hover vào ảnh sẽ thấy nút xóa.</p></div>
+            </div>
+            <div class="help-block-item">
+              <span class="help-block-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></svg></span>
+              <div><strong>Liên kết</strong><p>Chèn link ngoài, hiện dạng thẻ bookmark gọn gàng thay vì URL trần.</p></div>
+            </div>
+
+            <div class="help-callout">
+              <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/></svg></span>
+              <div><strong>Sắp xếp lại khối:</strong> hover vào khối, giữ chuột đúng vào icon <em>⁝⁝</em> bên trái rồi kéo thả — kéo từ vùng chữ sẽ không hoạt động vì đó là vùng gõ văn bản.</div>
+            </div>
+          </section>
+
+          <!-- VIỆC CẦN LÀM -->
+          <section class="help-section" data-help-content="todo">
+            <p class="help-lead">Đây là phần to-do chính — dùng hiệu quả sẽ giúp bạn không bỏ sót việc nào.</p>
+
+            <div class="help-flow">
+              <div class="help-flow-step">
+                <span class="help-flow-num">📅</span>
+                <div><strong>Đặt hạn + giờ</strong><p>Bấm "Thêm hạn" trên mỗi việc. Bấm biểu tượng lịch trong modal chi tiết để chỉnh cả ngày lẫn giờ.</p></div>
+              </div>
+              <div class="help-flow-step">
+                <span class="help-flow-num">🚩</span>
+                <div><strong>Độ ưu tiên</strong><p>Bấm nút "Ưu tiên" nhiều lần để chuyển vòng: Không → Thấp → Trung bình → Cao. Màu sắc đổi theo tương ứng.</p></div>
+              </div>
+              <div class="help-flow-step">
+                <span class="help-flow-num">⤢</span>
+                <div><strong>Mở rộng chi tiết</strong><p>Bấm "Mở rộng" để mở modal: viết mô tả dài có định dạng (đậm/nghiêng/gạch chân/danh sách), thêm <strong>nhiều ảnh</strong>, <strong>nhiều link</strong>. Ảnh đầu tiên sẽ tự làm ảnh bìa hiển thị ngay trên thẻ.</p></div>
+              </div>
+              <div class="help-flow-step">
+                <span class="help-flow-num">📋</span>
+                <div><strong>Việc cần làm hôm nay</strong><p>Gom toàn bộ việc chưa xong từ mọi trang vào 1 chỗ, nhóm theo Quá hạn / Hôm nay / Sắp tới / Không có hạn — bấm tên trang để nhảy tới đúng trang chứa việc đó.</p></div>
+              </div>
+            </div>
+
+            <div class="help-callout">
+              <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.25"/><path d="M12 8v5M12 16h.01"/></svg></span>
+              <div><strong>Dùng sao cho hiệu quả:</strong> chỉ đặt hạn cho việc thực sự có deadline, dùng độ ưu tiên "Cao" tiết kiệm cho tối đa 2-3 việc quan trọng nhất trong ngày — nếu mọi thứ đều "Cao" thì độ ưu tiên sẽ mất tác dụng phân loại.</div>
+            </div>
+          </section>
+
+          <!-- MẸO SỬ DỤNG -->
+          <section class="help-section" data-help-content="tips">
+            <p class="help-lead">Vài điều có thể bạn chưa để ý:</p>
+
+            <div class="help-block-item">
+              <span class="help-block-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg></span>
+              <div><strong>Sáng/Tối</strong><p>Bấm icon mặt trời/trăng ở sidebar (hoặc góc phải màn hình đăng nhập) để đổi giao diện — lựa chọn được nhớ cho lần sau.</p></div>
+            </div>
+            <div class="help-block-item">
+              <span class="help-block-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span>
+              <div><strong>Hoàn tác xóa</strong><p>Xóa nhầm 1 trang? Toast phía dưới có nút "Hoàn tác" trong 5 giây trước khi xóa vĩnh viễn.</p></div>
+            </div>
+            <div class="help-block-item">
+              <span class="help-block-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15l-5-5-9 9"/></svg></span>
+              <div><strong>Đổi icon trang</strong><p>Bấm icon lớn đầu trang (mặc định 📄) để đổi thành emoji bất kỳ, giúp phân biệt các trang nhanh hơn khi nhìn sidebar.</p></div>
+            </div>
+            <div class="help-block-item">
+              <span class="help-block-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V10M12 10l-4 4M12 10l4 4M5 20h14"/></svg></span>
+              <div><strong>Mất mạng vẫn gõ được</strong><p>Nếu mất kết nối, banner cam sẽ báo — nội dung bạn gõ không mất, tự đồng bộ khi có mạng lại.</p></div>
+            </div>
+          </section>
+        </div>
+      </div>
     </div>
   </div>
 
