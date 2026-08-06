@@ -108,6 +108,11 @@ const detailSaveDescBtn = $("detailSaveDescBtn");
 const detailImageWrap = $("detailImageWrap");
 const detailLinkWrap = $("detailLinkWrap");
 const detailImageFileInput = $("detailImageFileInput");
+const detailEditDescBtn = $("detailEditDescBtn");
+const detailDescActions = $("detailDescActions");
+const detailCancelDescBtn = $("detailCancelDescBtn");
+const detailWordCount = $("detailWordCount");
+const detailDescImageFileInput = $("detailDescImageFileInput");
 const detailDeleteBtn = $("detailDeleteBtn");
 
 /* ---------------- State ---------------- */
@@ -124,6 +129,7 @@ let pagesFirstLoadDone = false;
 let pendingPageDeletions = new Map(); // pageId -> { timeoutId, title }
 let currentView = "empty"; // 'empty' | 'page' | 'today'
 let detailContext = null; // { pageId, blockId }
+let descEditBackupHTML = null;
 
 /* ---------------- Utils ---------------- */
 function debounce(fn, wait = 500) {
@@ -735,8 +741,10 @@ function buildTodo(block, pageIdOverride) {
   if (images[0]) {
     const cover = document.createElement("div");
     cover.className = "todo-cover";
-    cover.style.setProperty("--cover-img", `url("${images[0]}")`);
-    cover.style.backgroundImage = `var(--cover-img)`;
+    const coverImg = document.createElement("img");
+    coverImg.src = images[0];
+    coverImg.alt = "";
+    cover.appendChild(coverImg);
     cover.addEventListener("click", () => openDetailModal(pageId, block));
     wrap.appendChild(cover);
   }
@@ -857,6 +865,7 @@ function openDetailModal(pageId, block) {
   detailCheckbox.checked = !!block.checked;
   detailTitle.textContent = block.content || "";
   detailDescription.innerHTML = block.description || "";
+  exitDescEditMode(); // luôn mở ở chế độ xem, không phải chỉnh sửa
   detailDueDate.value = block.dueDate || "";
   detailDueTime.value = block.dueTime || "";
   const images = block.descImages || (block.descImageUrl ? [block.descImageUrl] : []);
@@ -899,35 +908,119 @@ function saveDetailDueDateTime() {
 detailDueDate.addEventListener("change", saveDetailDueDateTime);
 detailDueTime.addEventListener("change", saveDetailDueDateTime);
 
-/* ---- Rich text description (định dạng nhẹ bằng execCommand, không cần thư viện ngoài
-   vì project không dùng bundler - Quill/TipTap cần build step riêng) ---- */
-detailToolbar.querySelectorAll("button[data-cmd]").forEach((btn) => {
-  btn.addEventListener("mousedown", (e) => e.preventDefault()); // giữ focus/selection trong vùng soạn thảo
-  btn.addEventListener("click", () => {
-    const cmd = btn.dataset.cmd;
-    if (cmd === "createLink") {
-      const url = prompt("Dán URL:");
-      if (url) document.execCommand("createLink", false, url);
-    } else {
-      document.execCommand(cmd, false, null);
-    }
-    detailDescription.focus();
-    flushSaveDetailDescription();
-  });
-});
-const saveDetailDescription = debounce(() => {
-  if (!detailContext) return;
-  updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { description: detailDescription.innerHTML });
-}, 500);
+/* ---- Mô tả: chế độ Xem / Chỉnh sửa, toolbar định dạng bằng execCommand ---- */
 function flushSaveDetailDescription() {
   if (!detailContext) return;
   updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { description: detailDescription.innerHTML });
 }
-detailDescription.addEventListener("input", saveDetailDescription);
-detailDescription.addEventListener("blur", flushSaveDetailDescription); // lưu ngay khi click ra ngoài vùng mô tả
+function updateWordCount() {
+  const words = detailDescription.textContent.trim().split(/\s+/).filter(Boolean).length;
+  detailWordCount.textContent = `${words} từ`;
+}
+function enterDescEditMode() {
+  descEditBackupHTML = detailDescription.innerHTML;
+  detailDescription.contentEditable = "true";
+  detailToolbar.classList.remove("hidden");
+  detailDescActions.classList.remove("hidden");
+  detailWordCount.classList.remove("hidden");
+  detailEditDescBtn.classList.add("hidden");
+  updateWordCount();
+  detailDescription.focus();
+}
+function exitDescEditMode() {
+  detailDescription.contentEditable = "false";
+  detailToolbar.classList.add("hidden");
+  detailDescActions.classList.add("hidden");
+  detailWordCount.classList.add("hidden");
+  detailEditDescBtn.classList.remove("hidden");
+}
+detailEditDescBtn.addEventListener("click", enterDescEditMode);
 detailSaveDescBtn.addEventListener("click", () => {
   flushSaveDetailDescription();
+  exitDescEditMode();
   showToast("Đã lưu mô tả");
+});
+detailCancelDescBtn.addEventListener("click", () => {
+  detailDescription.innerHTML = descEditBackupHTML || "";
+  exitDescEditMode();
+});
+detailDescription.addEventListener("input", () => {
+  if (detailDescription.contentEditable === "true") updateWordCount();
+});
+
+function insertChecklistItem() {
+  document.execCommand("insertHTML", false, '<div class="detail-checklist-item"><input type="checkbox"> <span>Việc cần làm</span></div>');
+}
+function insertTable() {
+  document.execCommand("insertHTML", false, '<table><tr><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td></tr></table><div><br></div>');
+}
+
+// Checkbox trong checklist bấm được cả khi đang xem (không cần bật Chỉnh sửa) - tự lưu ngay
+detailDescription.addEventListener("click", (e) => {
+  const checkbox = e.target.closest('.detail-checklist-item input[type="checkbox"]');
+  if (!checkbox) return;
+  checkbox.toggleAttribute("checked", checkbox.checked);
+  checkbox.closest(".detail-checklist-item")?.classList.toggle("done", checkbox.checked);
+  flushSaveDetailDescription();
+});
+
+detailToolbar.querySelectorAll("button[data-cmd]").forEach((btn) => {
+  btn.addEventListener("mousedown", (e) => e.preventDefault());
+  btn.addEventListener("click", () => {
+    const cmd = btn.dataset.cmd;
+    detailDescription.focus();
+    if (cmd === "createLink") {
+      const url = prompt("Dán URL:");
+      if (url) document.execCommand("createLink", false, url);
+    } else if (cmd === "checklist") {
+      insertChecklistItem();
+    } else if (cmd === "table") {
+      insertTable();
+    } else if (cmd === "image") {
+      detailDescImageFileInput.click();
+      return;
+    } else if (btn.dataset.value) {
+      document.execCommand(cmd, false, btn.dataset.value);
+    } else {
+      document.execCommand(cmd, false, null);
+    }
+    updateWordCount();
+  });
+});
+
+detailDescImageFileInput.addEventListener("change", async () => {
+  const file = detailDescImageFileInput.files[0];
+  detailDescImageFileInput.value = "";
+  if (!file) return;
+  try {
+    showToast("Đang tải ảnh lên...");
+    const blob = await uploadImageToBlob(file);
+    document.execCommand("insertHTML", false, `<img src="${blob.url}" alt="">`);
+    updateWordCount();
+  } catch (err) {
+    console.error(err);
+    showToast("Lỗi tải ảnh: " + err.message);
+  }
+});
+
+// Kéo-thả ảnh trực tiếp vào vùng mô tả (chỉ khi đang ở chế độ Chỉnh sửa)
+detailDescription.addEventListener("dragover", (e) => {
+  if (detailDescription.contentEditable === "true") e.preventDefault();
+});
+detailDescription.addEventListener("drop", async (e) => {
+  if (detailDescription.contentEditable !== "true") return;
+  const file = [...(e.dataTransfer?.files || [])].find((f) => f.type.startsWith("image/"));
+  if (!file) return;
+  e.preventDefault();
+  try {
+    showToast("Đang tải ảnh lên...");
+    const blob = await uploadImageToBlob(file);
+    document.execCommand("insertHTML", false, `<img src="${blob.url}" alt="">`);
+    updateWordCount();
+  } catch (err) {
+    console.error(err);
+    showToast("Lỗi tải ảnh: " + err.message);
+  }
 });
 function openDetailImageGallery(url, images) {
   if (typeof Fancybox === "undefined") return;

@@ -195,6 +195,7 @@
   <!-- Hidden file input for image upload -->
   <input type="file" id="imageFileInput" accept="image/*" class="hidden" />
   <input type="file" id="detailImageFileInput" accept="image/*" class="hidden" />
+  <input type="file" id="detailDescImageFileInput" accept="image/*" class="hidden" />
 
   <div id="toast" class="toast hidden">
     <span id="toastMessage" class="toast-message"></span>
@@ -218,43 +219,56 @@
     <div class="modal-card detail-card">
       <button id="detailCloseBtn" class="icon-btn detail-close-btn" title="Đóng">✕</button>
 
-      <div class="detail-title-row">
+      <div class="detail-title-row detail-title-header">
         <input id="detailCheckbox" type="checkbox" />
         <div id="detailTitle" class="detail-title" contenteditable="true" data-placeholder="Tên việc cần làm..."></div>
       </div>
-
-      <div class="detail-section">
-        <div class="detail-label">⏰ Thời gian</div>
-        <div class="detail-datetime-row">
-          <input id="detailDueDate" type="date" class="due-date-input" />
-          <input id="detailDueTime" type="time" class="due-date-input" />
+      <div class="detail-inner">
+        <div class="detail-section">
+          <div class="detail-label">⏰ Thời gian</div>
+          <div class="detail-datetime-row">
+            <input id="detailDueDate" type="date" class="due-date-input" />
+            <input id="detailDueTime" type="time" class="due-date-input" />
+          </div>
         </div>
-      </div>
-
-      <div class="detail-section">
-        <div class="detail-label">📝 Mô tả</div>
-        <div id="detailToolbar" class="detail-toolbar">
-          <button type="button" data-cmd="bold" title="In đậm"><b>B</b></button>
-          <button type="button" data-cmd="italic" title="In nghiêng"><i>I</i></button>
-          <button type="button" data-cmd="underline" title="Gạch chân"><u>U</u></button>
-          <button type="button" data-cmd="insertUnorderedList" title="Danh sách">☰</button>
-          <button type="button" data-cmd="createLink" title="Chèn link">🔗</button>
+  
+        <div class="detail-section">
+          <div class="detail-label-row">
+            <div class="detail-label">📝 Mô tả</div>
+            <button id="detailEditDescBtn" class="detail-edit-btn" type="button">✏️ Chỉnh sửa</button>
+          </div>
+          <div id="detailToolbar" class="detail-toolbar hidden">
+            <button type="button" data-cmd="bold" title="In đậm"><b>B</b></button>
+            <button type="button" data-cmd="italic" title="In nghiêng"><i>I</i></button>
+            <button type="button" data-cmd="underline" title="Gạch chân"><u>U</u></button>
+            <button type="button" data-cmd="insertUnorderedList" title="Danh sách">☰</button>
+            <button type="button" data-cmd="formatBlock" data-value="blockquote" title="Trích dẫn">❝</button>
+            <button type="button" data-cmd="formatBlock" data-value="pre" title="Code block">&lt;/&gt;</button>
+            <button type="button" data-cmd="checklist" title="Checklist">☑</button>
+            <button type="button" data-cmd="table" title="Chèn bảng">⊞</button>
+            <button type="button" data-cmd="image" title="Chèn ảnh">🖼</button>
+            <button type="button" data-cmd="createLink" title="Chèn link">🔗</button>
+          </div>
+          <div id="detailDescription" class="detail-description-view" contenteditable="false" data-placeholder="Chưa có mô tả. Bấm &quot;Chỉnh sửa&quot; để thêm."></div>
+          <div id="detailWordCount" class="detail-word-count hidden"></div>
+          <div id="detailDescActions" class="detail-desc-actions hidden">
+            <button id="detailSaveDescBtn" class="btn btn-primary">Lưu</button>
+            <button id="detailCancelDescBtn" class="btn">Hủy</button>
+          </div>
         </div>
-        <div id="detailDescription" class="detail-description-editable" contenteditable="true" data-placeholder="Thêm mô tả chi tiết hơn..."></div>
-        <button id="detailSaveDescBtn" class="btn btn-primary detail-save-desc-btn">Lưu mô tả</button>
+  
+        <div class="detail-section">
+          <div class="detail-label">🖼️ Hình ảnh</div>
+          <div id="detailImageWrap"></div>
+        </div>
+  
+        <div class="detail-section">
+          <div class="detail-label">🔗 Liên kết</div>
+          <div id="detailLinkWrap"></div>
+        </div>
+  
+        <button id="detailDeleteBtn" class="btn btn-danger detail-delete-btn">🗑 Xóa thẻ này</button>
       </div>
-
-      <div class="detail-section">
-        <div class="detail-label">🖼️ Hình ảnh</div>
-        <div id="detailImageWrap"></div>
-      </div>
-
-      <div class="detail-section">
-        <div class="detail-label">🔗 Liên kết</div>
-        <div id="detailLinkWrap"></div>
-      </div>
-
-      <button id="detailDeleteBtn" class="btn btn-danger detail-delete-btn">🗑 Xóa thẻ này</button>
     </div>
   </div>
 

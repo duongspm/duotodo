@@ -839,41 +839,26 @@ button {
   overflow:hidden;
 }
 .todo-cover{
-  position:relative;
   width:100%;
-  height:128px;
-  background-size:cover;
-  background-position:center top;
+  height:150px;
   border-radius:var(--radius-lg);
   border:1px solid var(--border);
   margin-bottom:8px;
   cursor:pointer;
   overflow:hidden;
+  background:var(--bg-elevated);
   box-shadow:var(--shadow-sm);
-  transition:box-shadow .2s ease, transform .2s var(--ease-out);
+  transition:box-shadow .2s ease;
+  display:flex;align-items:center;justify-content:center;
 }
-/* Ảnh phóng to nhẹ khi hover, cảm giác "sống" hơn thay vì làm mờ cả block */
-.todo-cover::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background-size:cover;
-  background-position:center top;
-  background-image:var(--cover-img);
-  transform:scale(1);
-  transition:transform .35s var(--ease-out);
-}
-.todo-cover:hover::after{transform:scale(1.06);}
-/* Lớp phủ gradient mờ dần phía dưới - giúp ảnh (nhất là ảnh có chữ/video) hòa vào nội dung bên dưới thay vì bị cắt cụt */
-.todo-cover::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  z-index:1;
-  background:linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.32) 100%);
-  pointer-events:none;
+.todo-cover img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  transition:transform .3s var(--ease-out);
 }
 .todo-cover:hover{box-shadow:var(--shadow-md);}
+.todo-cover:hover img{transform:scale(1.03);}
 .todo-top{
   display:flex;align-items:flex-start;gap:8px;
   width:100%;
@@ -1314,14 +1299,26 @@ button {
 .detail-card{
   width:520px;
   max-width:100%;
-  max-height:88vh;
-  overflow-y:auto;
+  /* max-height:88vh;
+  overflow-y:auto; */
   position:relative;
   padding:28px;
 }
 .detail-close-btn{
   position:absolute;
   top:14px;right:14px;
+  /* background: rgba(0, 0, 0, .55); */
+}
+.detail-inner{
+  max-height:88vh;
+  overflow-y:auto;
+  padding: 10px 30px 30px 30px;
+}
+.detail-title-header{
+  /* box-shadow: 0px 0px 8px #1E1F2129; */
+}
+.detail-title-header #detailCheckbox{
+  margin-top: 0.65em;
 }
 .detail-title-row{
   display:flex;align-items:flex-start;gap:10px;
@@ -1453,7 +1450,66 @@ button {
   border-color:var(--border);
 }
 .detail-delete-btn:hover{background:rgba(239,68,68,.13);border-color:rgba(239,68,68,.13);}
+/* ---------- MÔ TẢ: chế độ Xem/Chỉnh sửa ---------- */
+.detail-label-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.detail-label-row .detail-label{margin-bottom:0;}
+.detail-edit-btn{
+  border:1px solid var(--border);background:none;
+  font-size:12.5px;font-weight:600;
+  color:var(--accent);
+  padding:8px 10px;
+  border-radius:4px;
+  display:inline-flex;align-items:center;gap:5px;
+}
+.detail-edit-btn:hover{background:var(--accent-soft);}
 
+.detail-description-view{
+  font-size:14px;
+  line-height:1.6;
+  color:var(--text-primary);
+  padding:2px;
+  min-height:1.6em;
+}
+.detail-description-view:empty:before{content:attr(data-placeholder);color:var(--text-secondary);}
+.detail-description-view[contenteditable="true"]{
+  border:1px solid var(--accent);
+  border-radius:var(--radius);
+  padding:10px 12px;
+  box-shadow:var(--shadow-glow);
+  outline:none;
+  min-height:110px;
+}
+.detail-description-view ul{margin:6px 0;padding-left:22px;}
+.detail-description-view blockquote{
+  margin:8px 0;
+  padding:6px 12px;
+  border-left:3px solid var(--accent);
+  color:var(--text-secondary);
+  background:var(--bg-elevated);
+  border-radius:0 6px 6px 0;
+}
+.detail-description-view pre{
+  margin:8px 0;
+  padding:10px 12px;
+  background:var(--bg-elevated);
+  border:1px solid var(--border);
+  border-radius:6px;
+  font-family:'JetBrains Mono',monospace;
+  font-size:12.5px;
+  overflow-x:auto;
+  white-space:pre-wrap;
+}
+.detail-description-view table{border-collapse:collapse;margin:8px 0;width:100%;}
+.detail-description-view table td{border:1px solid var(--border);padding:6px 8px;font-size:13px;min-width:60px;}
+.detail-description-view img{max-width:100%;border-radius:6px;margin:6px 0;display:block;}
+
+.detail-checklist-item{display:flex;align-items:flex-start;gap:6px;margin:3px 0;}
+.detail-checklist-item input[type=checkbox]{margin-top:4px;accent-color:var(--accent);cursor:pointer;}
+.detail-checklist-item.done span{text-decoration:line-through;color:var(--text-secondary);}
+
+.detail-desc-actions{display:flex;gap:8px;margin-bottom: 15px; align-items: center;}
+.detail-desc-actions button{margin: 0;}
+.detail-word-count{font-size:11.5px;color:var(--text-tertiary);margin-top:6px;text-align:right;}
 /* ---------- TOAST ---------- */
 /* ---------- OFFLINE BANNER ---------- */
 .offline-banner{
