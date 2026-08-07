@@ -22,6 +22,7 @@ const googleLoginBtn = $("googleLoginBtn");
 const logoutBtn = $("logoutBtn");
 const themeToggleBtn = $("themeToggleBtn");
 const themeToggleHeroBtn = $("themeToggleHeroBtn");
+const themeToggleSettingsBtn = $("themeToggleSettingsBtn");
 const helpFabBtn = $("helpFabBtn");
 const helpModal = $("helpModal");
 const helpCloseBtn = $("helpCloseBtn");
@@ -43,6 +44,7 @@ function toggleTheme() {
 }
 themeToggleBtn.addEventListener("click", toggleTheme);
 themeToggleHeroBtn.addEventListener("click", toggleTheme);
+themeToggleSettingsBtn.addEventListener("click", toggleTheme);
 
 /* ---------------- Help / hướng dẫn sử dụng ---------------- */
 function openHelpModal() {
@@ -114,6 +116,25 @@ const detailCancelDescBtn = $("detailCancelDescBtn");
 const detailWordCount = $("detailWordCount");
 const detailDescImageFileInput = $("detailDescImageFileInput");
 const detailDeleteBtn = $("detailDeleteBtn");
+const trashNavBtn = $("trashNavBtn");
+const trashCountBadge = $("trashCountBadge");
+const trashView = $("trashView");
+const trashToolbar = $("trashToolbar");
+const trashSelectAllCheckbox = $("trashSelectAllCheckbox");
+const trashSelectedCount = $("trashSelectedCount");
+const trashRestoreSelectedBtn = $("trashRestoreSelectedBtn");
+const trashDeleteSelectedBtn = $("trashDeleteSelectedBtn");
+const trashEmptyAllBtn = $("trashEmptyAllBtn");
+const trashGroups = $("trashGroups");
+const trashEmptyState = $("trashEmptyState");
+const settingsNavBtn = $("settingsNavBtn");
+const settingsModal = $("settingsModal");
+const settingsCloseBtn = $("settingsCloseBtn");
+const settingsAvatar = $("settingsAvatar");
+const settingsName = $("settingsName");
+const settingsEmail = $("settingsEmail");
+const settingsLogoutBtn = $("settingsLogoutBtn");
+const settingsOpenTrashBtn = $("settingsOpenTrashBtn");
 
 /* ---------------- State ---------------- */
 let currentUser = null;
@@ -126,10 +147,15 @@ let unsubToday = null;
 let blockElements = new Map(); // blockId -> rendered DOM element, for reconciled re-render
 let pendingImageBlockId = null;
 let pagesFirstLoadDone = false;
-let pendingPageDeletions = new Map(); // pageId -> { timeoutId, title }
-let currentView = "empty"; // 'empty' | 'page' | 'today'
+let currentView = "empty"; // 'empty' | 'page' | 'today' | 'trash'
 let detailContext = null; // { pageId, blockId }
 let descEditBackupHTML = null;
+let unsubTrashPages = null;
+let unsubTrashBlocks = null;
+let trashedPages = [];
+let trashedBlocks = [];
+let trashSelection = new Set(); // "page:ID" hoặc "block:PAGEID:BLOCKID"
+const TRASH_RETENTION_DAYS = 30;
 
 /* ---------------- Utils ---------------- */
 function debounce(fn, wait = 500) {
@@ -244,8 +270,9 @@ onAuthStateChanged(auth, (user) => {
   if (unsubPages) unsubPages();
   if (unsubBlocks) unsubBlocks();
   if (unsubToday) unsubToday();
-  pendingPageDeletions.forEach((p) => clearTimeout(p.timeoutId));
-  pendingPageDeletions.clear();
+  if (unsubTrashPages) unsubTrashPages();
+  if (unsubTrashBlocks) unsubTrashBlocks();
+  trashSelection.clear();
   pagesFirstLoadDone = false;
   currentPageId = null;
   pagesById.clear();
@@ -330,7 +357,7 @@ function subscribeToPages() {
 
 function renderTree() {
   const roots = [...pagesById.values()]
-    .filter((p) => !p.parentId && !pendingPageDeletions.has(p.id))
+    .filter((p) => !p.parentId && !p.deleted)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   pageTree.innerHTML = "";
@@ -340,7 +367,7 @@ function renderTree() {
 
 function buildNode(page) {
   const children = [...pagesById.values()]
-    .filter((p) => p.parentId === page.id && !pendingPageDeletions.has(p.id))
+    .filter((p) => p.parentId === page.id && !p.deleted)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
   const li = document.createElement("li");
@@ -418,6 +445,8 @@ async function createPage(parentId) {
     order: siblingCount,
     todoOpenCount: 0,
     todoTotalCount: 0,
+    deleted: false,
+    deletedAt: null,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -428,44 +457,64 @@ async function createPage(parentId) {
 async function deletePageWithConfirm(pageId, title) {
   const hasChildren = [...pagesById.values()].some((p) => p.parentId === pageId);
   const msg = hasChildren
-    ? `Xóa "${title || "trang này"}" sẽ xóa luôn tất cả trang con bên trong.`
-    : `Xóa "${title || "trang này"}"? Hành động này không thể hoàn tác.`;
+    ? `Xóa "${title || "trang này"}" sẽ chuyển vào Thùng rác, kèm theo tất cả trang con bên trong.`
+    : `Xóa "${title || "trang này"}"? Trang sẽ được chuyển vào Thùng rác, có thể khôi phục trong 30 ngày.`;
   const ok = await showConfirm("Xóa trang?", msg, { danger: true, confirmText: "Xóa" });
   if (!ok) return;
 
-  const timeoutId = setTimeout(async () => {
-    pendingPageDeletions.delete(pageId);
-    await deletePageRecursive(pageId);
-  }, 5000);
-  pendingPageDeletions.set(pageId, { timeoutId, title });
-
+  await softDeletePageRecursive(pageId);
   if (currentPageId === pageId) showEmptyPageState();
-  renderTree();
 
-  showToast(`Đã xóa "${title || "trang này"}"`, {
+  showToast(`Đã chuyển "${title || "trang này"}" vào thùng rác`, {
     actionLabel: "Hoàn tác",
     duration: 5000,
-    onAction: () => {
-      const pending = pendingPageDeletions.get(pageId);
-      if (pending) {
-        clearTimeout(pending.timeoutId);
-        pendingPageDeletions.delete(pageId);
-        renderTree();
-        showToast("Đã hoàn tác");
-      }
+    onAction: async () => {
+      await restorePageRecursive(pageId);
+      showToast("Đã khôi phục");
     }
   });
 }
 
-async function deletePageRecursive(pageId) {
+/* Xóa mềm: đánh dấu deleted=true trên trang + toàn bộ trang con + toàn bộ khối bên trong,
+   KHÔNG xóa dữ liệu thật - để có thể khôi phục từ Thùng rác trong 30 ngày. */
+async function softDeletePageRecursive(pageId) {
+  const blocksSnap = await getDocs(blocksCol(pageId));
+  const batch = writeBatch(db);
+  const now = serverTimestamp();
+  blocksSnap.forEach((b) => batch.update(b.ref, { deleted: true, deletedAt: now }));
+  batch.update(doc(db, "users", currentUser.uid, "pages", pageId), { deleted: true, deletedAt: now });
+  await batch.commit();
+
+  const children = [...pagesById.values()].filter((p) => p.parentId === pageId);
+  for (const c of children) {
+    await softDeletePageRecursive(c.id);
+  }
+}
+
+/* Khôi phục: bỏ đánh dấu deleted trên trang + trang con + khối bên trong */
+async function restorePageRecursive(pageId) {
+  const blocksSnap = await getDocs(blocksCol(pageId));
+  const batch = writeBatch(db);
+  blocksSnap.forEach((b) => batch.update(b.ref, { deleted: false, deletedAt: null }));
+  batch.update(doc(db, "users", currentUser.uid, "pages", pageId), { deleted: false, deletedAt: null });
+  await batch.commit();
+
+  const children = [...pagesById.values()].filter((p) => p.parentId === pageId);
+  for (const c of children) {
+    await restorePageRecursive(c.id);
+  }
+}
+
+/* Xóa vĩnh viễn thật sự - chỉ gọi từ Thùng rác hoặc tự động dọn sau 30 ngày */
+async function permanentlyDeletePageRecursive(pageId) {
   const blocksSnap = await getDocs(blocksCol(pageId));
   for (const b of blocksSnap.docs) {
     const data = b.data();
     if (data.type === "image" && data.storagePath) deleteImageFromBlob(data.storagePath);
     if (data.type === "todo") {
-          const imgs = data.descImages || (data.descImageUrl ? [data.descImageUrl] : []);
-          imgs.forEach((url) => deleteImageFromBlob(url));
-        }
+      const imgs = data.descImages || (data.descImageUrl ? [data.descImageUrl] : []);
+      imgs.forEach((url) => deleteImageFromBlob(url));
+    }
   }
   const batch = writeBatch(db);
   blocksSnap.forEach((b) => batch.delete(b.ref));
@@ -473,7 +522,7 @@ async function deletePageRecursive(pageId) {
 
   const children = [...pagesById.values()].filter((p) => p.parentId === pageId);
   for (const c of children) {
-    await deletePageRecursive(c.id);
+    await permanentlyDeletePageRecursive(c.id);
   }
   await deleteDoc(doc(db, "users", currentUser.uid, "pages", pageId));
 }
@@ -518,9 +567,13 @@ function showEmptyPageState() {
   pageSkeleton.classList.add("hidden");
   todayView.classList.add("hidden");
   todayNavBtn.classList.remove("active");
+  trashView.classList.add("hidden");
+  trashNavBtn.classList.remove("active");
   emptyState.classList.remove("hidden");
   if (unsubBlocks) unsubBlocks();
     if (unsubToday) unsubToday();
+    if (unsubTrashPages) unsubTrashPages();
+    if (unsubTrashBlocks) unsubTrashBlocks();
     blockElements.clear();
     blocksContainer.innerHTML = "";
   renderTree();
@@ -532,8 +585,12 @@ function openPage(pageId) {
   currentPageId = pageId;
   emptyState.classList.add("hidden");
   todayView.classList.add("hidden");
+  trashView.classList.add("hidden");
   if (unsubToday) unsubToday();
+  if (unsubTrashPages) unsubTrashPages();
+  if (unsubTrashBlocks) unsubTrashBlocks();
   todayNavBtn.classList.remove("active");
+  trashNavBtn.classList.remove("active");
 
   const p = pagesById.get(pageId);
   pageTitleEl.textContent = p?.title || "";
@@ -559,13 +616,15 @@ function subscribeToBlocks(pageId) {
       pageSkeleton.classList.add("hidden");
       pageView.classList.remove("hidden");
     }
-    const blocks = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const blocks = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((b) => !b.deleted);
     renderBlocks(blocks);
-    // Tự vá field "uid" cho block cũ tạo trước khi có field này (cần để hiện trong "Việc cần làm hôm nay")
+    // Tự vá field "uid" / "deleted" cho block cũ tạo trước khi có các field này
     snap.docs.forEach((d) => {
-      if (!d.data().uid) {
-        updateDoc(d.ref, { uid: currentUser.uid }).catch(() => {});
-      }
+      const data = d.data();
+      const patch = {};
+      if (!data.uid) patch.uid = currentUser.uid;
+      if (data.deleted === undefined) patch.deleted = false;
+      if (Object.keys(patch).length) updateDoc(d.ref, patch).catch(() => {});
     });
   }, (err) => {
     console.error(err);
@@ -1144,14 +1203,14 @@ function renderDetailLinks(links) {
 
 detailDeleteBtn.addEventListener("click", async () => {
   if (!detailContext) return;
-  const ok = await showConfirm("Xóa thẻ này?", "Toàn bộ nội dung, ảnh và link đính kèm sẽ bị xóa vĩnh viễn.", { danger: true, confirmText: "Xóa thẻ" });
+  const ok = await showConfirm("Xóa thẻ này?", "Thẻ sẽ được chuyển vào Thùng rác, có thể khôi phục trong 30 ngày.", { danger: true, confirmText: "Xóa thẻ" });
   if (!ok) return;
   const { pageId, blockId } = detailContext;
   const snap = await getDocs(blocksCol(pageId));
   const blockDoc = snap.docs.find((d) => d.id === blockId);
   closeDetailModal();
   if (!blockDoc) return;
-  await deleteBlockById(pageId, { id: blockId, ...blockDoc.data() });
+  await softDeleteBlock(pageId, { id: blockId, ...blockDoc.data() });
 });
 
 /* ---------------- Image / Link blocks (page content) ---------------- */
@@ -1278,7 +1337,7 @@ async function addBlock(type) {
   if (!currentPageId) return;
   const snap = await getDocs(blocksCol(currentPageId));
   const order = snap.size;
-  const base = { type, order, uid: currentUser.uid, createdAt: serverTimestamp() };
+  const base = { type, order, uid: currentUser.uid, deleted: false, deletedAt: null, createdAt: serverTimestamp() };
   if (type === "todo") {
     Object.assign(base, {
       content: "", checked: false, dueDate: null, dueTime: null, priority: null,
@@ -1295,25 +1354,61 @@ async function addBlock(type) {
   }
 }
 
-async function deleteBlock(block) {
-  const ok = await showConfirm("Xóa khối này?", "Nội dung sẽ bị xóa vĩnh viễn.", { danger: true, confirmText: "Xóa" });
-  if (!ok) return;
-  await deleteBlockById(currentPageId, block);
+function blockPreviewLabel(block) {
+  if (block.content) return block.content;
+  if (block.type === "image") return "(Hình ảnh)";
+  if (block.type === "link") return block.label || block.url || "(Liên kết)";
+  return "(Không có nội dung)";
 }
 
-async function deleteBlockById(pageId, block) {
-  if (block.type === "image" && block.storagePath) deleteImageFromBlob(block.storagePath);
-  if (block.type === "todo") {
-    const images = block.descImages || (block.descImageUrl ? [block.descImageUrl] : []);
-    images.forEach((url) => deleteImageFromBlob(url));
-  }
-  await deleteDoc(blockRef(pageId, block.id));
+async function deleteBlock(block) {
+  const ok = await showConfirm("Xóa khối này?", "Khối sẽ được chuyển vào Thùng rác, có thể khôi phục trong 30 ngày.", { danger: true, confirmText: "Xóa" });
+  if (!ok) return;
+  await softDeleteBlock(currentPageId, block);
+}
+
+/* Xóa mềm 1 khối - dùng cho cả nút xóa khối lẫn nút "Xóa thẻ này" trong modal chi tiết */
+async function softDeleteBlock(pageId, block) {
+  await updateDoc(blockRef(pageId, block.id), { deleted: true, deletedAt: serverTimestamp() });
   if (block.type === "todo") {
     await updateDoc(doc(db, "users", currentUser.uid, "pages", pageId), {
       todoTotalCount: increment(-1),
       todoOpenCount: increment(block.checked ? 0 : -1)
     });
   }
+  showToast(`Đã chuyển "${blockPreviewLabel(block)}" vào thùng rác`, {
+    actionLabel: "Hoàn tác",
+    duration: 5000,
+    onAction: async () => {
+      await restoreBlock(pageId, block);
+      showToast("Đã khôi phục");
+    }
+  });
+}
+
+/* deleteBlockById giữ lại tên cũ để tương thích các chỗ gọi trước đó - nay cũng là xóa mềm */
+async function deleteBlockById(pageId, block) {
+  await softDeleteBlock(pageId, block);
+}
+
+async function restoreBlock(pageId, block) {
+  await updateDoc(blockRef(pageId, block.id), { deleted: false, deletedAt: null });
+  if (block.type === "todo") {
+    await updateDoc(doc(db, "users", currentUser.uid, "pages", pageId), {
+      todoTotalCount: increment(1),
+      todoOpenCount: increment(block.checked ? 0 : 1)
+    });
+  }
+}
+
+/* Xóa vĩnh viễn thật sự - chỉ gọi từ Thùng rác hoặc tự động dọn sau 30 ngày */
+async function permanentlyDeleteBlock(pageId, block) {
+  if (block.type === "image" && block.storagePath) deleteImageFromBlob(block.storagePath);
+  if (block.type === "todo") {
+    const images = block.descImages || (block.descImageUrl ? [block.descImageUrl] : []);
+    images.forEach((url) => deleteImageFromBlob(url));
+  }
+  await deleteDoc(blockRef(pageId, block.id));
 }
 
 async function reorderBlocks(draggedId, targetId, allBlocks) {
@@ -1337,9 +1432,13 @@ function openTodayView() {
   currentView = "today";
   currentPageId = null;
   if (unsubBlocks) unsubBlocks();
+  if (unsubTrashPages) unsubTrashPages();
+  if (unsubTrashBlocks) unsubTrashBlocks();
   emptyState.classList.add("hidden");
   pageView.classList.add("hidden");
   pageSkeleton.classList.add("hidden");
+  trashView.classList.add("hidden");
+  trashNavBtn.classList.remove("active");
   todayView.classList.remove("hidden");
   todayNavBtn.classList.add("active");
   renderTree();
@@ -1448,6 +1547,336 @@ function buildTodayItem(item) {
   row.append(checkbox, body);
   return row;
 }
+
+/* ---------------- Thùng rác ---------------- */
+trashNavBtn.addEventListener("click", openTrashView);
+settingsOpenTrashBtn.addEventListener("click", () => { closeSettingsModal(); openTrashView(); });
+
+function openTrashView() {
+  currentView = "trash";
+  currentPageId = null;
+  trashSelection.clear();
+  if (unsubBlocks) unsubBlocks();
+  if (unsubToday) unsubToday();
+  emptyState.classList.add("hidden");
+  pageView.classList.add("hidden");
+  pageSkeleton.classList.add("hidden");
+  todayView.classList.add("hidden");
+  todayNavBtn.classList.remove("active");
+  trashView.classList.remove("hidden");
+  trashNavBtn.classList.add("active");
+  renderTree();
+  closeSidebarOnMobile();
+  subscribeTrash();
+  purgeOldTrash();
+}
+
+function subscribeTrash() {
+  if (unsubTrashPages) unsubTrashPages();
+  if (unsubTrashBlocks) unsubTrashBlocks();
+
+  const pagesQ = query(pagesCol(), where("deleted", "==", true));
+  unsubTrashPages = onSnapshot(pagesQ, (snap) => {
+    trashedPages = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderTrash();
+  }, (err) => {
+    console.error(err);
+    showToast("Lỗi tải thùng rác (trang)");
+  });
+
+  const blocksQ = query(
+    collectionGroup(db, "blocks"),
+    where("uid", "==", currentUser.uid),
+    where("deleted", "==", true)
+  );
+  unsubTrashBlocks = onSnapshot(blocksQ, (snap) => {
+    trashedBlocks = snap.docs.map((d) => ({ id: d.id, pageId: d.ref.parent.parent.id, ...d.data() }));
+    renderTrash();
+  }, (err) => {
+    console.error(err);
+    showToast("Lỗi tải thùng rác (khối)");
+  });
+}
+
+function daysLeft(deletedAt) {
+  if (!deletedAt?.toMillis) return TRASH_RETENTION_DAYS;
+  const elapsedMs = Date.now() - deletedAt.toMillis();
+  const left = TRASH_RETENTION_DAYS - Math.floor(elapsedMs / 86400000);
+  return Math.max(0, left);
+}
+
+function renderTrash() {
+  const total = trashedPages.length + trashedBlocks.length;
+  trashCountBadge.classList.toggle("hidden", total === 0);
+  trashCountBadge.textContent = total;
+  if (currentView !== "trash") return;
+
+  trashToolbar.classList.toggle("hidden", total === 0);
+  trashEmptyState.classList.toggle("hidden", total > 0);
+  trashGroups.innerHTML = "";
+  if (total === 0) { updateTrashToolbarState(); return; }
+
+  if (trashedPages.length) {
+    const section = document.createElement("div");
+    const label = document.createElement("div");
+    label.className = "trash-group-label";
+    label.textContent = `📄 Trang đã xóa (${trashedPages.length})`;
+    section.appendChild(label);
+    trashedPages.forEach((p) => section.appendChild(buildTrashPageItem(p)));
+    trashGroups.appendChild(section);
+  }
+  if (trashedBlocks.length) {
+    const section = document.createElement("div");
+    const label = document.createElement("div");
+    label.className = "trash-group-label";
+    label.textContent = `🧩 Khối đã xóa (${trashedBlocks.length})`;
+    section.appendChild(label);
+    trashedBlocks.forEach((b) => section.appendChild(buildTrashBlockItem(b)));
+    trashGroups.appendChild(section);
+  }
+  updateTrashToolbarState();
+}
+
+function buildTrashPageItem(page) {
+  const key = `page:${page.id}`;
+  const row = document.createElement("div");
+  row.className = "trash-item";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = trashSelection.has(key);
+  checkbox.addEventListener("change", () => {
+    checkbox.checked ? trashSelection.add(key) : trashSelection.delete(key);
+    updateTrashToolbarState();
+  });
+
+  const body = document.createElement("div");
+  body.className = "trash-item-body";
+  const title = document.createElement("div");
+  title.className = "trash-item-title";
+  title.textContent = `${page.icon || "📄"} ${page.title || "Không có tiêu đề"}`;
+  const meta = document.createElement("div");
+  meta.className = "trash-item-meta";
+  const left = daysLeft(page.deletedAt);
+  const daysSpan = document.createElement("span");
+  daysSpan.className = "trash-item-days" + (left <= 5 ? " soon" : "");
+  daysSpan.textContent = `Còn ${left} ngày`;
+  meta.appendChild(daysSpan);
+  body.append(title, meta);
+
+  const actions = document.createElement("div");
+  actions.className = "trash-item-actions";
+  const restoreBtn = document.createElement("button");
+  restoreBtn.className = "trash-restore-btn";
+  restoreBtn.title = "Khôi phục";
+  restoreBtn.innerHTML = "↩";
+  restoreBtn.addEventListener("click", async () => {
+    await restorePageRecursive(page.id);
+    trashSelection.delete(key);
+    showToast("Đã khôi phục trang");
+  });
+  const delBtn = document.createElement("button");
+  delBtn.className = "trash-delete-btn";
+  delBtn.title = "Xóa vĩnh viễn";
+  delBtn.innerHTML = "🗑";
+  delBtn.addEventListener("click", async () => {
+    const ok = await showConfirm("Xóa vĩnh viễn?", `"${page.title || "Trang này"}" và toàn bộ nội dung bên trong sẽ bị xóa vĩnh viễn, không thể khôi phục.`, { danger: true, confirmText: "Xóa vĩnh viễn" });
+    if (!ok) return;
+    await permanentlyDeletePageRecursive(page.id);
+    trashSelection.delete(key);
+    showToast("Đã xóa vĩnh viễn");
+  });
+  actions.append(restoreBtn, delBtn);
+
+  row.append(checkbox, body, actions);
+  return row;
+}
+
+function buildTrashBlockItem(block) {
+  const key = `block:${block.pageId}:${block.id}`;
+  const page = pagesById.get(block.pageId);
+  const row = document.createElement("div");
+  row.className = "trash-item";
+
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.checked = trashSelection.has(key);
+  checkbox.addEventListener("change", () => {
+    checkbox.checked ? trashSelection.add(key) : trashSelection.delete(key);
+    updateTrashToolbarState();
+  });
+
+  const body = document.createElement("div");
+  body.className = "trash-item-body";
+  const title = document.createElement("div");
+  title.className = "trash-item-title";
+  title.textContent = blockPreviewLabel(block);
+  const meta = document.createElement("div");
+  meta.className = "trash-item-meta";
+  const left = daysLeft(block.deletedAt);
+  const daysSpan = document.createElement("span");
+  daysSpan.className = "trash-item-days" + (left <= 5 ? " soon" : "");
+  daysSpan.textContent = `Còn ${left} ngày`;
+  const pageSpan = document.createElement("span");
+  pageSpan.textContent = `từ trang: ${page?.icon || "📄"} ${page?.title || "Không rõ"}`;
+  meta.append(daysSpan, pageSpan);
+  body.append(title, meta);
+
+  const actions = document.createElement("div");
+  actions.className = "trash-item-actions";
+  const restoreBtn = document.createElement("button");
+  restoreBtn.className = "trash-restore-btn";
+  restoreBtn.title = "Khôi phục";
+  restoreBtn.innerHTML = "↩";
+  restoreBtn.addEventListener("click", async () => {
+    await restoreBlock(block.pageId, block);
+    trashSelection.delete(key);
+    showToast("Đã khôi phục khối");
+  });
+  const delBtn = document.createElement("button");
+  delBtn.className = "trash-delete-btn";
+  delBtn.title = "Xóa vĩnh viễn";
+  delBtn.innerHTML = "🗑";
+  delBtn.addEventListener("click", async () => {
+    const ok = await showConfirm("Xóa vĩnh viễn?", "Khối này sẽ bị xóa vĩnh viễn, không thể khôi phục.", { danger: true, confirmText: "Xóa vĩnh viễn" });
+    if (!ok) return;
+    await permanentlyDeleteBlock(block.pageId, block);
+    trashSelection.delete(key);
+    showToast("Đã xóa vĩnh viễn");
+  });
+  actions.append(restoreBtn, delBtn);
+
+  row.append(checkbox, body, actions);
+  return row;
+}
+
+function allTrashKeys() {
+  return [
+    ...trashedPages.map((p) => `page:${p.id}`),
+    ...trashedBlocks.map((b) => `block:${b.pageId}:${b.id}`)
+  ];
+}
+
+function updateTrashToolbarState() {
+  const all = allTrashKeys();
+  const selectedCount = [...trashSelection].filter((k) => all.includes(k)).length;
+  trashSelectedCount.textContent = selectedCount > 0 ? `Đã chọn ${selectedCount}` : "";
+  trashSelectAllCheckbox.checked = all.length > 0 && selectedCount === all.length;
+  trashRestoreSelectedBtn.disabled = selectedCount === 0;
+  trashDeleteSelectedBtn.disabled = selectedCount === 0;
+  trashEmptyAllBtn.disabled = all.length === 0;
+}
+
+trashSelectAllCheckbox.addEventListener("change", () => {
+  if (trashSelectAllCheckbox.checked) {
+    allTrashKeys().forEach((k) => trashSelection.add(k));
+  } else {
+    trashSelection.clear();
+  }
+  renderTrash();
+});
+
+async function resolveTrashKey(key) {
+  const [kind, a, b] = key.split(":");
+  if (kind === "page") return { kind, page: trashedPages.find((p) => p.id === a) };
+  return { kind, block: trashedBlocks.find((bl) => bl.pageId === a && bl.id === b), pageId: a };
+}
+
+trashRestoreSelectedBtn.addEventListener("click", async () => {
+  const keys = [...trashSelection];
+  if (!keys.length) return;
+  for (const key of keys) {
+    const item = await resolveTrashKey(key);
+    if (item.kind === "page" && item.page) await restorePageRecursive(item.page.id);
+    else if (item.kind === "block" && item.block) await restoreBlock(item.pageId, item.block);
+  }
+  trashSelection.clear();
+  showToast(`Đã khôi phục ${keys.length} mục`);
+});
+
+trashDeleteSelectedBtn.addEventListener("click", async () => {
+  const keys = [...trashSelection];
+  if (!keys.length) return;
+  const ok = await showConfirm("Xóa vĩnh viễn các mục đã chọn?", `${keys.length} mục sẽ bị xóa vĩnh viễn, không thể khôi phục.`, { danger: true, confirmText: "Xóa vĩnh viễn" });
+  if (!ok) return;
+  for (const key of keys) {
+    const item = await resolveTrashKey(key);
+    if (item.kind === "page" && item.page) await permanentlyDeletePageRecursive(item.page.id);
+    else if (item.kind === "block" && item.block) await permanentlyDeleteBlock(item.pageId, item.block);
+  }
+  trashSelection.clear();
+  showToast(`Đã xóa vĩnh viễn ${keys.length} mục`);
+});
+
+trashEmptyAllBtn.addEventListener("click", async () => {
+  const total = trashedPages.length + trashedBlocks.length;
+  if (!total) return;
+  const ok = await showConfirm("Xóa tất cả trong thùng rác?", `Toàn bộ ${total} mục sẽ bị xóa vĩnh viễn, không thể khôi phục.`, { danger: true, confirmText: "Xóa tất cả" });
+  if (!ok) return;
+  for (const p of [...trashedPages]) await permanentlyDeletePageRecursive(p.id);
+  for (const b of [...trashedBlocks]) await permanentlyDeleteBlock(b.pageId, b);
+  trashSelection.clear();
+  showToast("Đã dọn sạch thùng rác");
+});
+
+/* Tự động xóa vĩnh viễn các mục đã nằm trong thùng rác quá 30 ngày - chạy mỗi khi mở Thùng rác */
+async function purgeOldTrash() {
+  try {
+    const cutoff = Date.now() - TRASH_RETENTION_DAYS * 86400000;
+    const pagesSnap = await getDocs(query(pagesCol(), where("deleted", "==", true)));
+    for (const d of pagesSnap.docs) {
+      const data = d.data();
+      if (data.deletedAt?.toMillis && data.deletedAt.toMillis() < cutoff) {
+        await permanentlyDeletePageRecursive(d.id);
+      }
+    }
+    const blocksSnap = await getDocs(query(
+      collectionGroup(db, "blocks"),
+      where("uid", "==", currentUser.uid),
+      where("deleted", "==", true)
+    ));
+    for (const d of blocksSnap.docs) {
+      const data = d.data();
+      if (data.deletedAt?.toMillis && data.deletedAt.toMillis() < cutoff) {
+        const pageId = d.ref.parent.parent.id;
+        await permanentlyDeleteBlock(pageId, { id: d.id, ...data });
+      }
+    }
+  } catch (err) {
+    console.error("purgeOldTrash lỗi:", err);
+  }
+}
+
+/* ---------------- Cài đặt ---------------- */
+function openSettingsModal() {
+  settingsAvatar.src = currentUser?.photoURL || "";
+  settingsName.textContent = currentUser?.displayName || "Người dùng";
+  settingsEmail.textContent = currentUser?.email || "";
+  settingsModal.classList.remove("hidden");
+}
+function closeSettingsModal() {
+  settingsModal.classList.add("hidden");
+}
+settingsNavBtn.addEventListener("click", openSettingsModal);
+settingsCloseBtn.addEventListener("click", closeSettingsModal);
+settingsModal.addEventListener("click", (e) => { if (e.target === settingsModal) closeSettingsModal(); });
+settingsLogoutBtn.addEventListener("click", () => {
+  closeSettingsModal();
+  logoutBtn.click();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !settingsModal.classList.contains("hidden")) closeSettingsModal();
+});
+
+/* ---------------- Phím tắt: Ctrl/Cmd + Shift + O = Trang mới ---------------- */
+document.addEventListener("keydown", (e) => {
+  if (!currentUser) return;
+  const key = e.key.toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === "o") {
+    e.preventDefault();
+    createPage(null);
+  }
+});
 
 /* ---------------- Sidebar toggle (mobile) ---------------- */
 sidebarToggle.addEventListener("click", () => 
