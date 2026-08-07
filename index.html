@@ -64,6 +64,7 @@
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css" />
   <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js" defer></script>
+  <script src="https://cdn.lordicon.com/lordicon.js"></script>
 
 </head>
 <body>
@@ -157,13 +158,27 @@
 
       <div class="sidebar-bottom">
         <button id="trashNavBtn" class="sidebar-new-btn trash-nav-btn">
-          <span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span>
+          <span class="plus">
+            <lord-icon
+              src="https://cdn.lordicon.com/tftntjtg.json"
+              trigger="hover"
+              colors="primary:#000000,secondary:#000000"
+              style="width:20px;height:20px">
+            </lord-icon>
+          </span>
           Thùng rác
           <span id="trashCountBadge" class="node-badge hidden"></span>
         </button>
         <button id="settingsNavBtn" class="sidebar-new-btn settings-nav-btn">
-          <span class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15z"/></svg></span>
-          Cài đặt
+          <span class="plus">
+            <lord-icon
+              src="https://cdn.lordicon.com/eduzjjfi.json"
+              trigger="hover"
+              colors="primary:#000000,secondary:#000000"
+              style="width:20px;height:20px">
+          </lord-icon>
+        </span>
+        Cài đặt
         </button>
 
         <a class="sidebar-brand" href="https://duotodo.vercel.app" target="_blank" rel="noopener noreferrer">
@@ -177,7 +192,15 @@
 
     <main id="mainContent" class="main-content">
       <div id="emptyState" class="empty-state">
-        <div class="empty-state-mark">✎</div>
+        <div class="empty-state-mark">
+          <lord-icon
+              src="https://cdn.lordicon.com/vysppwvq.json"
+              trigger="hover"
+              stroke="light"
+              colors="primary:#4f1091,secondary:#000000"
+              style="width:100px;height:100px">
+          </lord-icon>
+        </div>
         <p>Chọn một trang bên trái, hoặc tạo trang mới.</p>
         <button id="emptyStateNewBtn" class="btn btn-primary">＋ Tạo trang đầu tiên</button>
       </div>
@@ -223,7 +246,14 @@
         </div>
 
         <div id="trashGroups" class="trash-groups"></div>
-        <div id="trashEmptyState" class="today-empty hidden">🗑 Thùng rác trống</div>
+        <div id="trashEmptyState" class="today-empty hidden">
+          <lord-icon
+              src="https://cdn.lordicon.com/tftntjtg.json"
+              trigger="hover"
+              colors="primary:#000000,secondary:#000000"
+              style="width:100px;height:100px">
+          </lord-icon>
+          <p>Thùng rác trống</p></div>
       </div>
 
       <div id="pageView" class="page-view hidden">
@@ -300,7 +330,12 @@
         <div class="detail-section">
           <div class="detail-label-row">
             <div class="detail-label">📝 Mô tả</div>
-            <button id="detailEditDescBtn" class="detail-edit-btn" type="button">✏️ Chỉnh sửa</button>
+            <button id="detailEditDescBtn" class="detail-edit-btn" type="button"><lord-icon
+                src="https://cdn.lordicon.com/iubtdgvu.json"
+                trigger="hover"
+                colors="primary:#320a5c,secondary:#000000"
+                style="width:20px;height:20px">
+            </lord-icon> Chỉnh sửa</button>
           </div>
           <div id="detailToolbar" class="detail-toolbar hidden">
             <button type="button" data-cmd="bold" title="In đậm"><b>B</b></button>
@@ -342,8 +377,8 @@
           <p class="detail-file-note">Mỗi tệp tối đa 4MB (giới hạn của server upload).</p>
         </div>
   
-        <button id="detailDeleteBtn" class="btn btn-danger detail-delete-btn">🗑 Xóa thẻ này</button>
       </div>
+      <button id="detailDeleteBtn" class="btn btn-danger detail-delete-btn">🗑 Xóa thẻ này</button>
     </div>
   </div>
 

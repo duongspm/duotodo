@@ -937,8 +937,14 @@ function buildTodo(block, pageIdOverride) {
   });
   meta.appendChild(flagBtn);
 
+  const files = block.descFiles || [];
   const links = block.descLinks || (block.descLinkUrl ? [{ url: block.descLinkUrl, label: block.descLinkLabel }] : []);
-  const hasDetail = !!(block.description || images.length || links.length);
+  const hasDetail = !!(block.description || images.length || links.length || files.length);
+  const folderCount = [...new Set(
+  files
+    .map((f) => (f.path || f.webkitRelativePath || "").split("/").slice(0, -1).join("/"))
+    .filter(Boolean)
+  )].length;
   const expandBtn = document.createElement("button");
   expandBtn.className = "detail-expand-btn" + (hasDetail ? " has-content" : "");
   if (hasDetail) {
@@ -946,13 +952,16 @@ function buildTodo(block, pageIdOverride) {
     if (block.description) badges.push("Mô tả");
     if (images.length) badges.push(`${images.length} ảnh`);
     if (links.length) badges.push(`${links.length} link`);
+    if (files.length) {
+      badges.push(folderCount > 0 ? `${files.length} tệp · ${folderCount} thư mục` : `${files.length} tệp`);
+    }
     expandBtn.appendChild(iconEl("expand", "chip-icon"));
     expandBtn.append(" " + badges.join(" · "));
   } else {
     expandBtn.appendChild(iconEl("expand", "chip-icon"));
     expandBtn.append(" Mở rộng");
   }
-  expandBtn.title = "Xem chi tiết: mô tả, ảnh, link";
+  expandBtn.title = "Xem chi tiết: mô tả, ảnh, link, file";
   expandBtn.addEventListener("click", () => openDetailModal(pageId, block));
   meta.appendChild(expandBtn);
 
@@ -1008,6 +1017,7 @@ function saveDetailDueDateTime() {
     dueDate: detailDueDate.value || null,
     dueTime: detailDueDate.value ? (detailDueTime.value || null) : null
   });
+  showToast("Đã lưu thời gian !");
 }
 detailDueDate.addEventListener("change", saveDetailDueDateTime);
 detailDueTime.addEventListener("change", saveDetailDueDateTime);
@@ -1042,7 +1052,7 @@ detailEditDescBtn.addEventListener("click", enterDescEditMode);
 detailSaveDescBtn.addEventListener("click", () => {
   flushSaveDetailDescription();
   exitDescEditMode();
-  showToast("Đã lưu mô tả");
+  showToast("Đã lưu mô tả !");
 });
 detailCancelDescBtn.addEventListener("click", () => {
   detailDescription.innerHTML = descEditBackupHTML || "";
@@ -1101,6 +1111,7 @@ detailDescImageFileInput.addEventListener("change", async () => {
     const blob = await uploadImageToBlob(file);
     document.execCommand("insertHTML", false, `<img src="${blob.url}" alt="">`);
     updateWordCount();
+    showToast("Đã tải ảnh lên thành công !");
   } catch (err) {
     console.error(err);
     showToast("Lỗi tải ảnh: " + err.message);
@@ -1163,6 +1174,7 @@ function renderDetailImages(images) {
       const next = images.filter((u) => u !== url);
       await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descImages: next });
       renderDetailImages(next);
+      showToast("Đã tải ảnh lên thành công !");
     });
     wrap.append(img, removeBtn);
     grid.appendChild(wrap);
@@ -1275,9 +1287,10 @@ async function handleFilesSelected(fileList) {
     detailFilesWrap.appendChild(uploadingMsg);
     try {
       const blob = await uploadRawFileToBlob(file);
-      files = [...files, { url: blob.url, name: file.name, size: file.size, type: file.type || "" }];
+      files = [...files, { url: blob.url, name: file.name, size: file.size, type: file.type || "", path: file.webkitRelativePath || "" }];
       await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descFiles: files });
       renderDetailFiles(files);
+      showToast(`Đã tải "${file.name}" lên thành công !`);
     } catch (err) {
       console.error(err);
       showToast(`Lỗi tải "${file.name}": ` + err.message);
@@ -1339,6 +1352,7 @@ function renderDetailLinks(links) {
     await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descLinks: next });
     renderDetailLinks(next);
     input.value = "";
+    showToast("Đã thêm liên kết thành công !");
   });
   row.append(input, btn);
   detailLinkWrap.appendChild(row);
