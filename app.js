@@ -1175,7 +1175,7 @@ function renderDetailImages(images) {
       const next = images.filter((u) => u !== url);
       await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descImages: next });
       renderDetailImages(next);
-      showToast("Đã tải ảnh lên thành công !");
+      showToast("Đã xóa ảnh thành công !");
     });
     wrap.append(img, removeBtn);
     grid.appendChild(wrap);
