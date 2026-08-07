@@ -141,6 +141,18 @@ const settingsName = $("settingsName");
 const settingsEmail = $("settingsEmail");
 const settingsLogoutBtn = $("settingsLogoutBtn");
 const settingsOpenTrashBtn = $("settingsOpenTrashBtn");
+const searchTriggerBtn = $("searchTriggerBtn");
+const paletteModal = $("paletteModal");
+const paletteInput = $("paletteInput");
+const paletteCloseBtn = $("paletteCloseBtn");
+const paletteResults = $("paletteResults");
+const paletteTagFilterBtn = $("paletteTagFilterBtn");
+const paletteTagFilterCount = $("paletteTagFilterCount");
+const paletteTagDropdown = $("paletteTagDropdown");
+const paletteDateField = $("paletteDateField");
+const paletteDateRange = $("paletteDateRange");
+const pageBreadcrumb = $("pageBreadcrumb");
+const pageTagsRow = $("pageTagsRow");
 const emailLoginToggleBtn = $("emailLoginToggleBtn");
 const emailLoginForm = $("emailLoginForm");
 const emailLoginInput = $("emailLoginInput");
@@ -389,6 +401,8 @@ function subscribeToPages() {
       const p = pagesById.get(currentPageId);
       if (document.activeElement !== pageTitleEl) pageTitleEl.textContent = p.title || "";
       pageIconBtn.textContent = p.icon || "📄";
+      renderBreadcrumb(currentPageId);
+      renderPageTags(currentPageId);
     } else if (currentPageId && !pagesById.has(currentPageId)) {
       showEmptyPageState();
     }
@@ -490,6 +504,7 @@ async function createPage(parentId) {
     todoTotalCount: 0,
     deleted: false,
     deletedAt: null,
+    tags: [],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -638,6 +653,9 @@ function openPage(pageId) {
   const p = pagesById.get(pageId);
   pageTitleEl.textContent = p?.title || "";
   pageIconBtn.textContent = p?.icon || "📄";
+  renderBreadcrumb(pageId);
+  renderPageTags(pageId);
+  pushRecentPage(pageId);
 
   pageView.classList.add("hidden");
   pageSkeleton.classList.remove("hidden");
@@ -2055,6 +2073,292 @@ document.addEventListener("keydown", (e) => {
   if ((e.ctrlKey || e.metaKey) && e.shiftKey && key === "o") {
     e.preventDefault();
     createPage(null);
+  }
+});
+
+/* ---------------- Breadcrumb ---------------- */
+function renderBreadcrumb(pageId) {
+  const chain = [];
+  let cur = pagesById.get(pageId);
+  while (cur?.parentId) {
+    const parent = pagesById.get(cur.parentId);
+    if (!parent) break;
+    chain.unshift(parent);
+    cur = parent;
+  }
+  pageBreadcrumb.innerHTML = "";
+  pageBreadcrumb.classList.toggle("hidden", chain.length === 0);
+  chain.forEach((p) => {
+    const item = document.createElement("span");
+    item.className = "page-breadcrumb-item";
+    item.textContent = `${p.icon || "📄"} ${p.title || "Không có tiêu đề"}`;
+    item.addEventListener("click", () => openPage(p.id));
+    pageBreadcrumb.appendChild(item);
+    const sep = document.createElement("span");
+    sep.className = "page-breadcrumb-sep";
+    sep.textContent = "/";
+    pageBreadcrumb.appendChild(sep);
+  });
+}
+
+/* ---------------- Tags (đơn giản, gắn ở cấp trang) ---------------- */
+function renderPageTags(pageId) {
+  const page = pagesById.get(pageId);
+  const tags = page?.tags || [];
+  pageTagsRow.innerHTML = "";
+  tags.forEach((tag) => {
+    const chip = document.createElement("span");
+    chip.className = "page-tag-chip";
+    const label = document.createElement("span");
+    label.textContent = tag;
+    const removeBtn = document.createElement("button");
+    removeBtn.textContent = "✕";
+    removeBtn.title = "Bỏ tag";
+    removeBtn.addEventListener("click", async () => {
+      const next = tags.filter((t) => t !== tag);
+      await updateDoc(doc(db, "users", currentUser.uid, "pages", pageId), { tags: next, updatedAt: serverTimestamp() });
+    });
+    chip.append(label, removeBtn);
+    pageTagsRow.appendChild(chip);
+  });
+  const addBtn = document.createElement("button");
+  addBtn.className = "page-tag-add-btn";
+  addBtn.textContent = "+ Tag";
+  addBtn.addEventListener("click", async () => {
+    const input = prompt("Thêm tag mới:");
+    const value = input?.trim();
+    if (!value || tags.includes(value)) return;
+    await updateDoc(doc(db, "users", currentUser.uid, "pages", pageId), { tags: [...tags, value], updatedAt: serverTimestamp() });
+  });
+  pageTagsRow.appendChild(addBtn);
+}
+
+function getAllTags() {
+  const set = new Set();
+  pagesById.forEach((p) => { if (!p.deleted) (p.tags || []).forEach((t) => set.add(t)); });
+  return [...set].sort();
+}
+
+/* ---------------- Recent pages (localStorage) ---------------- */
+const RECENT_KEY = "duotodo_recent_pages";
+function pushRecentPage(pageId) {
+  try {
+    let list = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+    list = list.filter((id) => id !== pageId);
+    list.unshift(pageId);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 8)));
+  } catch (e) {}
+}
+function getRecentPages() {
+  try {
+    const ids = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+    return ids.map((id) => pagesById.get(id)).filter((p) => p && !p.deleted);
+  } catch (e) { return []; }
+}
+
+/* ---------------- Command Palette (Ctrl/Cmd + K) ---------------- */
+let paletteAllBlocks = [];
+let paletteBlocksLoaded = false;
+let paletteTagFilter = new Set();
+let paletteActiveIndex = -1;
+
+function pagePathLabel(pageId) {
+  const chain = [];
+  let cur = pagesById.get(pageId);
+  while (cur) { chain.unshift(cur.title || "Không có tiêu đề"); cur = cur.parentId ? pagesById.get(cur.parentId) : null; }
+  return chain.join(" / ");
+}
+
+async function ensurePaletteBlocksLoaded() {
+  if (paletteBlocksLoaded || !currentUser) return;
+  try {
+    const snap = await getDocs(query(collectionGroup(db, "blocks"), where("uid", "==", currentUser.uid)));
+    paletteAllBlocks = snap.docs
+      .map((d) => ({ id: d.id, pageId: d.ref.parent.parent.id, ...d.data() }))
+      .filter((b) => !b.deleted && b.content);
+    paletteBlocksLoaded = true;
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function openPalette() {
+  if (!currentUser) return;
+  paletteModal.classList.remove("hidden");
+  paletteInput.value = "";
+  paletteInput.focus();
+  renderPaletteTagDropdown();
+  ensurePaletteBlocksLoaded().then(renderPaletteResults);
+  renderPaletteResults();
+}
+function closePalette() {
+  paletteModal.classList.add("hidden");
+  paletteTagDropdown.classList.add("hidden");
+}
+searchTriggerBtn.addEventListener("click", openPalette);
+paletteCloseBtn.addEventListener("click", closePalette);
+paletteModal.addEventListener("click", (e) => { if (e.target === paletteModal) closePalette(); });
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+    e.preventDefault();
+    paletteModal.classList.contains("hidden") ? openPalette() : closePalette();
+  } else if (e.key === "Escape" && !paletteModal.classList.contains("hidden")) {
+    closePalette();
+  }
+});
+
+function renderPaletteTagDropdown() {
+  const tags = getAllTags();
+  paletteTagDropdown.innerHTML = "";
+  if (!tags.length) {
+    paletteTagDropdown.innerHTML = '<div class="palette-tag-empty">Chưa có tag nào</div>';
+    return;
+  }
+  tags.forEach((tag) => {
+    const label = document.createElement("label");
+    label.className = "palette-tag-option";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = paletteTagFilter.has(tag);
+    cb.addEventListener("change", () => {
+      cb.checked ? paletteTagFilter.add(tag) : paletteTagFilter.delete(tag);
+      paletteTagFilterCount.textContent = paletteTagFilter.size;
+      paletteTagFilterCount.classList.toggle("hidden", paletteTagFilter.size === 0);
+      renderPaletteResults();
+    });
+    label.append(cb, document.createTextNode(tag));
+    paletteTagDropdown.appendChild(label);
+  });
+}
+paletteTagFilterBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  paletteTagDropdown.classList.toggle("hidden");
+});
+document.addEventListener("click", () => paletteTagDropdown.classList.add("hidden"));
+paletteTagDropdown.addEventListener("click", (e) => e.stopPropagation());
+
+function withinDateFilter(page) {
+  const range = paletteDateRange.value;
+  if (range === "all") return true;
+  const field = paletteDateField.value;
+  const ts = page[field];
+  if (!ts?.toMillis) return true;
+  const days = Number(range);
+  return Date.now() - ts.toMillis() <= days * 86400000;
+}
+
+function highlightMatch(text, q) {
+  if (!q) return escapeHtml(text);
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx === -1) return escapeHtml(text);
+  return escapeHtml(text.slice(0, idx)) + "<mark>" + escapeHtml(text.slice(idx, idx + q.length)) + "</mark>" + escapeHtml(text.slice(idx + q.length));
+}
+
+paletteInput.addEventListener("input", renderPaletteResults);
+paletteDateField.addEventListener("change", renderPaletteResults);
+paletteDateRange.addEventListener("change", renderPaletteResults);
+
+function renderPaletteResults() {
+  const q = paletteInput.value.trim().toLowerCase();
+  paletteActiveIndex = -1;
+  paletteResults.innerHTML = "";
+
+  let pages = [...pagesById.values()].filter((p) => !p.deleted);
+  if (paletteTagFilter.size) pages = pages.filter((p) => (p.tags || []).some((t) => paletteTagFilter.has(t)));
+  pages = pages.filter(withinDateFilter);
+
+  if (!q) {
+    const recents = getRecentPages().filter((p) => pages.includes(p));
+    if (!recents.length) {
+      paletteResults.innerHTML = '<div class="palette-empty">Gõ để tìm trang, việc cần làm, ghi chú...</div>';
+      return;
+    }
+    const label = document.createElement("div");
+    label.className = "palette-section-label";
+    label.textContent = "Gần đây";
+    paletteResults.appendChild(label);
+    recents.forEach((p) => paletteResults.appendChild(buildPaletteItem({ kind: "page", page: p }, "")));
+    updatePaletteActiveHighlight();
+    return;
+  }
+
+  const pageMatches = pages.filter((p) => (p.title || "").toLowerCase().includes(q));
+  const pageIdsInFilter = new Set(pages.map((p) => p.id));
+  const blockMatches = paletteAllBlocks
+    .filter((b) => pageIdsInFilter.has(b.pageId) && (b.content || "").toLowerCase().includes(q))
+    .slice(0, 25);
+
+  if (!pageMatches.length && !blockMatches.length) {
+    paletteResults.innerHTML = '<div class="palette-empty">Không tìm thấy kết quả nào</div>';
+    return;
+  }
+
+  if (pageMatches.length) {
+    const label = document.createElement("div");
+    label.className = "palette-section-label";
+    label.textContent = `Trang (${pageMatches.length})`;
+    paletteResults.appendChild(label);
+    pageMatches.forEach((p) => paletteResults.appendChild(buildPaletteItem({ kind: "page", page: p }, q)));
+  }
+  if (blockMatches.length) {
+    const label = document.createElement("div");
+    label.className = "palette-section-label";
+    label.textContent = `Nội dung (${blockMatches.length})`;
+    paletteResults.appendChild(label);
+    blockMatches.forEach((b) => paletteResults.appendChild(buildPaletteItem({ kind: "block", block: b }, q)));
+  }
+  updatePaletteActiveHighlight();
+}
+
+function buildPaletteItem(entry, q) {
+  const row = document.createElement("div");
+  row.className = "palette-item";
+
+  const icon = document.createElement("div");
+  icon.className = "palette-item-icon";
+  const body = document.createElement("div");
+  body.className = "palette-item-body";
+  const title = document.createElement("div");
+  title.className = "palette-item-title";
+  const path = document.createElement("div");
+  path.className = "palette-item-path";
+
+  if (entry.kind === "page") {
+    icon.textContent = entry.page.icon || "📄";
+    title.innerHTML = highlightMatch(entry.page.title || "Không có tiêu đề", q);
+    path.textContent = pagePathLabel(entry.page.id);
+    row.addEventListener("click", () => { closePalette(); openPage(entry.page.id); });
+  } else {
+    icon.appendChild(iconEl(entry.block.type === "heading" ? "heading" : entry.block.type));
+    title.innerHTML = highlightMatch(entry.block.content || "", q);
+    path.textContent = pagePathLabel(entry.block.pageId);
+    row.addEventListener("click", () => { closePalette(); openPage(entry.block.pageId); });
+  }
+  body.append(title, path);
+  row.append(icon, body);
+  return row;
+}
+
+function paletteItemEls() { return [...paletteResults.querySelectorAll(".palette-item")]; }
+function updatePaletteActiveHighlight() {
+  const items = paletteItemEls();
+  items.forEach((el, i) => el.classList.toggle("active", i === paletteActiveIndex));
+  if (paletteActiveIndex >= 0) items[paletteActiveIndex]?.scrollIntoView({ block: "nearest" });
+}
+paletteInput.addEventListener("keydown", (e) => {
+  const items = paletteItemEls();
+  if (!items.length) return;
+  if (e.key === "ArrowDown") {
+    e.preventDefault();
+    paletteActiveIndex = Math.min(paletteActiveIndex + 1, items.length - 1);
+    updatePaletteActiveHighlight();
+  } else if (e.key === "ArrowUp") {
+    e.preventDefault();
+    paletteActiveIndex = Math.max(paletteActiveIndex - 1, 0);
+    updatePaletteActiveHighlight();
+  } else if (e.key === "Enter" && paletteActiveIndex >= 0) {
+    e.preventDefault();
+    items[paletteActiveIndex]?.click();
   }
 });
 

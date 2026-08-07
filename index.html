@@ -137,10 +137,17 @@
           Trang mới
         </button>
 
+        <button id="searchTriggerBtn" class="sidebar-search-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <span>Tìm kiếm...</span>
+          <kbd class="sidebar-search-kbd">Ctrl K</kbd>
+        </button>
+
         <button id="todayNavBtn" class="sidebar-new-btn today-nav-btn">
           <span class="plus"><img src="assets/imgs/ChecklistNotePaperText.svg" width="40" alt="note"></span> Việc cần làm hôm nay
         </button>
       </div>
+
 
       <div class="sidebar-mid">
         <div class="sidebar-label">Trang của bạn</div>
@@ -257,6 +264,7 @@
       </div>
 
       <div id="pageView" class="page-view hidden">
+        <div id="pageBreadcrumb" class="page-breadcrumb hidden"></div>
         <div class="page-header">
           <button id="pageIconBtn" class="page-icon-btn" title="Đổi biểu tượng">📄</button>
           <div id="pageTitle" class="page-title" contenteditable="true" data-placeholder="Không có tiêu đề"></div>
@@ -264,6 +272,7 @@
             <img src="assets/imgs/Delete.svg" width="50" alt="delete">
           </button>
         </div>
+        <div id="pageTagsRow" class="page-tags-row"></div>
 
         <div id="blocksContainer" class="blocks-container"></div>
 
@@ -529,6 +538,40 @@
   </div>
 
   <!-- Modal Cài đặt -->
+  <!-- Command Palette (Ctrl+K) -->
+  <div id="paletteModal" class="modal-overlay palette-overlay hidden">
+    <div class="modal-card palette-card">
+      <div class="palette-input-row">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="palette-search-icon"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="paletteInput" type="text" placeholder="Tìm trang, việc cần làm, ghi chú..." autocomplete="off" />
+        <button id="paletteCloseBtn" class="icon-btn" title="Đóng (Esc)">✕</button>
+      </div>
+
+      <div class="palette-filters">
+        <div class="palette-filter-group">
+          <button id="paletteTagFilterBtn" class="palette-filter-btn" type="button">🏷 Tag <span id="paletteTagFilterCount" class="hidden"></span></button>
+          <div id="paletteTagDropdown" class="palette-dropdown hidden"></div>
+        </div>
+        <div class="palette-filter-group">
+          <select id="paletteDateField" class="palette-select">
+            <option value="updatedAt">Ngày sửa</option>
+            <option value="createdAt">Ngày tạo</option>
+          </select>
+        </div>
+        <div class="palette-filter-group">
+          <select id="paletteDateRange" class="palette-select">
+            <option value="all">Mọi lúc</option>
+            <option value="1">Hôm nay</option>
+            <option value="7">7 ngày qua</option>
+            <option value="30">30 ngày qua</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="paletteResults" class="palette-results"></div>
+    </div>
+  </div>
+
   <div id="settingsModal" class="modal-overlay hidden">
     <div class="modal-card settings-card">
       <button id="settingsCloseBtn" class="icon-btn detail-close-btn" title="Đóng">✕</button>
