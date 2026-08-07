@@ -8,8 +8,6 @@
 # Bỏ qua nguyên một thư mục (và tất cả những gì bên trong nó)
 bk/
 data/
-*.txt
+
 .vscode/settings.json
 .vscode/
-.vercel
-.env*

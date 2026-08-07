@@ -88,6 +88,16 @@
         <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.9v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.9A9 9 0 0 0 0 9c0 1.45.35 2.83.9 4.03l3.05-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .9 4.97l3.05 2.33C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
         Đăng nhập bằng Google
       </button>
+
+      <button id="emailLoginToggleBtn" class="hero-email-toggle" type="button">Hoặc đăng nhập bằng Email (máy lạ, không lưu phiên Google)</button>
+      <div id="emailLoginForm" class="hero-email-form hidden">
+        <input id="emailLoginInput" type="email" placeholder="Email" autocomplete="username" />
+        <input id="passwordLoginInput" type="password" placeholder="Mật khẩu phụ" autocomplete="current-password" />
+        <button id="emailLoginSubmitBtn" class="btn btn-primary">Đăng nhập</button>
+        <button id="emailLoginForgotBtn" type="button" class="hero-email-forgot">Quên mật khẩu?</button>
+        <p class="hero-email-note">Cần đặt mật khẩu phụ trước trong Cài đặt (khi đã đăng nhập Google) mới dùng được cách này.</p>
+      </div>
+
       <p class="hero-trust">🔒 Dữ liệu lưu riêng tư trên Firebase — chỉ tài khoản của bạn truy cập được.</p>
 
       <div class="hero-features">
@@ -119,7 +129,7 @@
           </button>
         </div>
 
-        <button id="newRootPageBtn" class="sidebar-primary-btn" data-tooltip="Trang mới" data-tooltip-keys="Ctrl,⇧,O">
+        <button id="newRootPageBtn" class="sidebar-primary-btn" data-tooltip="Trang mới" data-tooltip-keys="Ctrl/Cmd + Shift + O">
           <span class="sidebar-primary-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
           </span>
@@ -498,6 +508,16 @@
             <span class="theme-icon theme-icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></span>
           </button>
         </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">Bảo mật</div>
+        <p class="settings-desc">Đặt mật khẩu phụ để đăng nhập bằng Email trên máy lạ, không cần mở popup Google (tránh lưu phiên Google trên thiết bị đó).</p>
+        <div id="settingsPasswordForm">
+          <input id="settingsNewPasswordInput" type="password" placeholder="Mật khẩu phụ (tối thiểu 6 ký tự)" class="settings-password-input" />
+          <button id="settingsSetPasswordBtn" class="btn btn-primary">Đặt mật khẩu phụ</button>
+        </div>
+        <p id="settingsPasswordDone" class="settings-desc hidden">✅ Đã thiết lập — dùng email <strong id="settingsEmailInline"></strong> + mật khẩu phụ để đăng nhập trên máy khác.</p>
       </div>
 
       <div class="settings-section">

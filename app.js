@@ -1,7 +1,8 @@
 import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
+  EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, sendPasswordResetEmail
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, collectionGroup, doc, addDoc, updateDoc, deleteDoc, onSnapshot,
@@ -135,6 +136,17 @@ const settingsName = $("settingsName");
 const settingsEmail = $("settingsEmail");
 const settingsLogoutBtn = $("settingsLogoutBtn");
 const settingsOpenTrashBtn = $("settingsOpenTrashBtn");
+const emailLoginToggleBtn = $("emailLoginToggleBtn");
+const emailLoginForm = $("emailLoginForm");
+const emailLoginInput = $("emailLoginInput");
+const passwordLoginInput = $("passwordLoginInput");
+const emailLoginSubmitBtn = $("emailLoginSubmitBtn");
+const emailLoginForgotBtn = $("emailLoginForgotBtn");
+const settingsPasswordSection = $("settingsPasswordSection");
+const settingsPasswordForm = $("settingsPasswordForm");
+const settingsPasswordDone = $("settingsPasswordDone");
+const settingsNewPasswordInput = $("settingsNewPasswordInput");
+const settingsSetPasswordBtn = $("settingsSetPasswordBtn");
 
 /* ---------------- State ---------------- */
 let currentUser = null;
@@ -258,6 +270,32 @@ googleLoginBtn.addEventListener("click", async () => {
   } catch (err) {
     console.error(err);
     showToast("Đăng nhập thất bại: " + err.message);
+  }
+});
+
+emailLoginToggleBtn.addEventListener("click", () => {
+  emailLoginForm.classList.toggle("hidden");
+});
+emailLoginSubmitBtn.addEventListener("click", async () => {
+  const email = emailLoginInput.value.trim();
+  const password = passwordLoginInput.value;
+  if (!email || !password) return showToast("Nhập đủ email và mật khẩu");
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (err) {
+    console.error(err);
+    showToast("Đăng nhập thất bại: sai email hoặc mật khẩu");
+  }
+});
+emailLoginForgotBtn.addEventListener("click", async () => {
+  const email = emailLoginInput.value.trim();
+  if (!email) return showToast("Nhập email trước để nhận link đặt lại mật khẩu");
+  try {
+    await sendPasswordResetEmail(auth, email);
+    showToast("Đã gửi email đặt lại mật khẩu (123456)");
+  } catch (err) {
+    console.error(err);
+    showToast("Lỗi: " + err.message);
   }
 });
 logoutBtn.addEventListener("click", async () => {
@@ -1848,12 +1886,33 @@ async function purgeOldTrash() {
 }
 
 /* ---------------- Cài đặt ---------------- */
+function hasPasswordLinked() {
+  return !!currentUser?.providerData?.some((p) => p.providerId === "password");
+}
 function openSettingsModal() {
   settingsAvatar.src = currentUser?.photoURL || "";
   settingsName.textContent = currentUser?.displayName || "Người dùng";
   settingsEmail.textContent = currentUser?.email || "";
+  settingsPasswordForm.classList.toggle("hidden", hasPasswordLinked());
+  settingsPasswordDone.classList.toggle("hidden", !hasPasswordLinked());
   settingsModal.classList.remove("hidden");
+  settingsEmailInline.textContent = currentUser?.email || "";
 }
+settingsSetPasswordBtn.addEventListener("click", async () => {
+  const password = settingsNewPasswordInput.value;
+  if (!password || password.length < 6) return showToast("Mật khẩu cần ít nhất 6 ký tự");
+  try {
+    const cred = EmailAuthProvider.credential(currentUser.email, password);
+    await linkWithCredential(currentUser, cred);
+    settingsNewPasswordInput.value = "";
+    settingsPasswordForm.classList.add("hidden");
+    settingsPasswordDone.classList.remove("hidden");
+    showToast("Đã đặt mật khẩu phụ - dùng email + mật khẩu này để đăng nhập trên máy lạ");
+  } catch (err) {
+    console.error(err);
+    showToast("Lỗi: " + err.message);
+  }
+});
 function closeSettingsModal() {
   settingsModal.classList.add("hidden");
 }

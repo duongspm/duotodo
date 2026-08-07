@@ -1,0 +1,42 @@
+class="empty-state-mark"
+
+<script src="https://cdn.lordicon.com/lordicon.js"></script>
+          <lord-icon
+              src="https://cdn.lordicon.com/vysppwvq.json"
+              trigger="hover"
+              stroke="light"
+              colors="primary:#4f1091,secondary:#000000"
+              style="width:100px;height:100px">
+          </lord-icon>
+
+---------
+<button id="trashNavBtn" class="sidebar-new-btn trash-nav-btn">
+
+<span class="plus">
+            <lord-icon
+    src="https://cdn.lordicon.com/tftntjtg.json"
+    trigger="hover"
+    colors="primary:#000000,secondary:#000000"
+    style="width:20px;height:20px">
+</lord-icon>
+          </span>
+
+---------
+<button id="settingsNavBtn" class="sidebar-new-btn settings-nav-btn">
+
+<span class="plus"><lord-icon
+    src="https://cdn.lordicon.com/eduzjjfi.json"
+    trigger="hover"
+    colors="primary:#000000,secondary:#000000"
+    style="width:20px;height:20px">
+</lord-icon></span>
+
+---------
+id="detailEditDescBtn"
+
+<lord-icon
+                src="https://cdn.lordicon.com/iubtdgvu.json"
+                trigger="hover"
+                colors="primary:#320a5c,secondary:#000000"
+                style="width:20px;height:20px">
+            </lord-icon>
