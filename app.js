@@ -1132,6 +1132,7 @@ detailDescription.addEventListener("drop", async (e) => {
     const blob = await uploadImageToBlob(file);
     document.execCommand("insertHTML", false, `<img src="${blob.url}" alt="">`);
     updateWordCount();
+    showToast("Đã tải ảnh lên thành công !");
   } catch (err) {
     console.error(err);
     showToast("Lỗi tải ảnh: " + err.message);
@@ -1204,6 +1205,7 @@ detailImageFileInput.addEventListener("change", async () => {
     const next = [...images, blob.url];
     await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descImages: next });
     renderDetailImages(next);
+    showToast("Đã tải ảnh lên thành công !");
   } catch (err) {
     console.error(err);
     showToast("Lỗi tải ảnh: " + err.message);
@@ -1431,7 +1433,7 @@ imageFileInput.addEventListener("change", async () => {
     showToast("Đang tải ảnh lên...");
     const blob = await uploadImageToBlob(file);
     await updateDoc(blockRef(currentPageId, blockId), { imageUrl: blob.url, storagePath: blob.url });
-    showToast("Đã tải ảnh lên");
+    showToast("Đã tải ảnh lên thành công !");
   } catch (err) {
     console.error(err);
     showToast("Lỗi tải ảnh: " + err.message);
