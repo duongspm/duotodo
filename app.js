@@ -111,6 +111,11 @@ const detailSaveDescBtn = $("detailSaveDescBtn");
 const detailImageWrap = $("detailImageWrap");
 const detailLinkWrap = $("detailLinkWrap");
 const detailImageFileInput = $("detailImageFileInput");
+const detailFilesInput = $("detailFilesInput");
+const detailFolderInput = $("detailFolderInput");
+const detailFilesWrap = $("detailFilesWrap");
+const detailAddFilesBtn = $("detailAddFilesBtn");
+const detailAddFolderBtn = $("detailAddFolderBtn");
 const detailEditDescBtn = $("detailEditDescBtn");
 const detailDescActions = $("detailDescActions");
 const detailCancelDescBtn = $("detailCancelDescBtn");
@@ -724,7 +729,8 @@ const ICONS = {
   flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v18"/><path d="M5 4h11l-2.5 4L16 12H5"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
   expand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg>',
-  grip: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>'
+  grip: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>',
+  file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'
 };
 function iconEl(name, className) {
   const span = document.createElement("span");
@@ -969,6 +975,7 @@ function openDetailModal(pageId, block) {
   const links = block.descLinks || (block.descLinkUrl ? [{ url: block.descLinkUrl, label: block.descLinkLabel }] : []);
   renderDetailImages(images);
   renderDetailLinks(links);
+  renderDetailFiles(block.descFiles || []);
   detailModal.classList.remove("hidden");
   setTimeout(() => detailTitle.focus(), 50);
 }
@@ -1190,6 +1197,104 @@ detailImageFileInput.addEventListener("change", async () => {
     showToast("Lỗi tải ảnh: " + err.message);
     uploadingMsg.remove();
   }
+});
+
+/* ---- Tệp đính kèm (bất kỳ loại file, kể cả upload cả thư mục) ---- */
+const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB - giới hạn body của Vercel Serverless Function
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+async function uploadRawFileToBlob(file) {
+  const filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "")}`;
+  const res = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`, {
+    method: "POST",
+    body: file
+  });
+  if (!res.ok) {
+    let message = `Tải lên thất bại (HTTP ${res.status})`;
+    try { const data = await res.json(); if (data.error) message = data.error; } catch (_) {}
+    throw new Error(message);
+  }
+  return res.json();
+}
+
+function renderDetailFiles(files) {
+  detailFilesWrap.innerHTML = "";
+  files.forEach((f) => {
+    const row = document.createElement("div");
+    row.className = "detail-file-item";
+    const icon = document.createElement("div");
+    icon.className = "detail-file-icon";
+    icon.innerHTML = ICONS.file;
+    const info = document.createElement("div");
+    info.className = "detail-file-info";
+    const a = document.createElement("a");
+    a.className = "detail-file-name";
+    a.href = f.url; a.target = "_blank"; a.rel = "noopener noreferrer";
+    a.textContent = f.name;
+    const size = document.createElement("div");
+    size.className = "detail-file-size";
+    size.textContent = formatFileSize(f.size || 0);
+    info.append(a, size);
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "detail-file-remove";
+    removeBtn.title = "Xóa tệp";
+    removeBtn.textContent = "✕";
+    removeBtn.addEventListener("click", async () => {
+      if (!detailContext) return;
+      const ok = await showConfirm("Xóa tệp này?", `"${f.name}" sẽ bị xóa vĩnh viễn.`, { danger: true, confirmText: "Xóa" });
+      if (!ok) return;
+      deleteImageFromBlob(f.url);
+      const next = files.filter((x) => x.url !== f.url);
+      await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descFiles: next });
+      renderDetailFiles(next);
+    });
+    row.append(icon, info, removeBtn);
+    detailFilesWrap.appendChild(row);
+  });
+}
+
+async function handleFilesSelected(fileList) {
+  if (!detailContext || !fileList.length) return;
+  const snap = await getDocs(blocksCol(detailContext.pageId));
+  let current = snap.docs.find((d) => d.id === detailContext.blockId)?.data() || {};
+  let files = current.descFiles || [];
+
+  for (const file of fileList) {
+    if (file.size > MAX_FILE_SIZE) {
+      showToast(`"${file.name}" vượt quá 4MB, bỏ qua`);
+      continue;
+    }
+    const uploadingMsg = document.createElement("div");
+    uploadingMsg.className = "detail-file-uploading";
+    uploadingMsg.textContent = `Đang tải "${file.name}"...`;
+    detailFilesWrap.appendChild(uploadingMsg);
+    try {
+      const blob = await uploadRawFileToBlob(file);
+      files = [...files, { url: blob.url, name: file.name, size: file.size, type: file.type || "" }];
+      await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descFiles: files });
+      renderDetailFiles(files);
+    } catch (err) {
+      console.error(err);
+      showToast(`Lỗi tải "${file.name}": ` + err.message);
+      uploadingMsg.remove();
+    }
+  }
+}
+
+detailAddFilesBtn.addEventListener("click", () => detailFilesInput.click());
+detailAddFolderBtn.addEventListener("click", () => detailFolderInput.click());
+detailFilesInput.addEventListener("change", () => {
+  handleFilesSelected([...detailFilesInput.files]);
+  detailFilesInput.value = "";
+});
+detailFolderInput.addEventListener("change", () => {
+  handleFilesSelected([...detailFolderInput.files]);
+  detailFolderInput.value = "";
 });
 
 /* ---- Nhiều link ---- */

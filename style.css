@@ -1601,6 +1601,43 @@ button {
   border-color:var(--border);
 }
 .detail-delete-btn:hover{background:rgba(239,68,68,.13);border-color:rgba(239,68,68,.13);}
+
+.detail-file-btn-row{display:flex;gap:8px;margin-bottom:6px;}
+.detail-file-note{font-size:11.5px;color:var(--text-tertiary);margin:0;}
+.detail-file-item{
+  display:flex;align-items:center;gap:10px;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:9px 11px;
+  margin-bottom:8px;
+}
+.detail-file-icon{
+  width:32px;height:32px;flex-shrink:0;
+  border-radius:6px;
+  background:var(--bg-elevated);
+  color:var(--text-tertiary);
+  display:flex;align-items:center;justify-content:center;
+}
+.detail-file-icon svg{width:16px;height:16px;}
+.detail-file-info{flex:1;min-width:0;}
+.detail-file-name{
+  font-size:13px;font-weight:500;color:var(--text-primary);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  text-decoration:none;
+  display:block;
+}
+.detail-file-name:hover{color:var(--accent);}
+.detail-file-size{font-size:11.5px;color:var(--text-tertiary);}
+.detail-file-remove{
+  border:none;background:none;
+  color:var(--text-secondary);
+  width:26px;height:26px;
+  border-radius:6px;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+}
+.detail-file-remove:hover{background:rgba(239,68,68,.13);color:var(--danger);}
+.detail-file-uploading{font-size:12.5px;color:var(--text-secondary);padding:6px 0;}
 /* ---------- MÔ TẢ: chế độ Xem/Chỉnh sửa ---------- */
 .detail-label-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
 .detail-label-row .detail-label{margin-bottom:0;}

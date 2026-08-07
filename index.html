@@ -259,6 +259,8 @@
   <input type="file" id="imageFileInput" accept="image/*" class="hidden" />
   <input type="file" id="detailImageFileInput" accept="image/*" class="hidden" />
   <input type="file" id="detailDescImageFileInput" accept="image/*" class="hidden" />
+  <input type="file" id="detailFilesInput" multiple class="hidden" />
+  <input type="file" id="detailFolderInput" webkitdirectory multiple class="hidden" />
 
   <div id="toast" class="toast hidden">
     <span id="toastMessage" class="toast-message"></span>
@@ -326,8 +328,18 @@
         </div>
   
         <div class="detail-section">
-          <div class="detail-label">🔗 Liên kết</div>
+        <div class="detail-label">🔗 Liên kết</div>
           <div id="detailLinkWrap"></div>
+        </div>
+
+        <div class="detail-section">
+          <div class="detail-label">📎 Tệp đính kèm</div>
+          <div id="detailFilesWrap"></div>
+          <div class="detail-file-btn-row">
+            <button id="detailAddFilesBtn" class="btn" type="button">📎 Thêm tệp</button>
+            <button id="detailAddFolderBtn" class="btn" type="button">📁 Tải thư mục</button>
+          </div>
+          <p class="detail-file-note">Mỗi tệp tối đa 4MB (giới hạn của server upload).</p>
         </div>
   
         <button id="detailDeleteBtn" class="btn btn-danger detail-delete-btn">🗑 Xóa thẻ này</button>
