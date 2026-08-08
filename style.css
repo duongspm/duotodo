@@ -709,7 +709,7 @@ button {
 }
 .page-node .node-icon {
   flex-shrink: 0;
-  font-size: 16px;
+  font-size: 14px;
 }
 .page-node .node-title {
   flex: 1;
@@ -1015,15 +1015,19 @@ button {
 .btn-primary:hover{background:#1a6fc4;box-shadow:var(--shadow-sm);}
 .btn-primary:active{transform:scale(.97);}
 .page-view {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 60px 60px 120px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 36px 56px 0;
+  overflow: hidden;
 }
+.page-breadcrumb{ flex-shrink: 0; }
 .page-header {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  flex-shrink: 0;
 }
 .page-icon-btn {
   font-size: clamp(30px, 4vw, 40px);
@@ -1057,12 +1061,20 @@ button {
   background: rgba(239,68,68,.13);
   color: var(--danger);
 }
+.page-tags-row{ flex-shrink: 0; }
 
 /* ---------- BLOCKS ---------- */
 .blocks-container {
   display: flex;
   flex-direction: column;
   gap: 0;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 10px;
+  padding-bottom: 24px;
+  margin-right: -12px;
+  padding-right: 12px;
 }
 .block {
   display: flex;
@@ -1081,6 +1093,53 @@ button {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
   box-shadow: var(--shadow-sm);
 }
+
+/* ---------- Vùng chèn khối giữa 2 khối (hover hiện nút +) ----------
+   Nằm đè lên mép trên của mỗi khối (position:absolute) thay vì là 1 phần tử
+   ngăn cách riêng, để không phá vỡ quan hệ 1-1 giữa dữ liệu block và DOM
+   (renderBlocks dựa vào chỉ số idx để tái sử dụng/định vị đúng phần tử). */
+.block-insert-zone{
+  position: absolute;
+  left: 0; right: 0; top: -9px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  z-index: 3;
+}
+.block-insert-zone::before{
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 50%;
+  height: 1px;
+  background: var(--accent);
+  opacity: 0;
+  transform: scaleX(0);
+  transition: opacity .12s ease, transform .12s ease;
+  transform-origin: center;
+}
+.block-insert-zone:hover::before{ opacity: .35; transform: scaleX(1); }
+.block-insert-btn{
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%) scale(.7);
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease, transform .12s ease;
+  box-shadow: var(--shadow-sm);
+}
+.block-insert-btn svg{ width: 13px; height: 13px; }
+.block-insert-zone:hover .block-insert-btn{
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, -50%) scale(1);
+}
+.block-insert-btn:hover{ background: var(--accent); color: #fff; }
 
 /* Một vạch mảnh bên trái xuất hiện khi hover - tối giản, không phân màu theo loại.
    Loại khối được nhận biết qua icon nhỏ đầu dòng (xem .block-type-icon trong app.js) thay vì màu sắc. */
@@ -1383,7 +1442,9 @@ button {
 
 .add-block-wrap {
   position: relative;
-  margin-top: 8px;
+  flex-shrink: 0;
+  padding: 10px 0 18px;
+  border-top: 1px solid var(--border);
 }
 .add-block-btn {
   border: none;
@@ -1398,18 +1459,17 @@ button {
   color: var(--text-primary);
 }
 .add-block-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
+  position: fixed;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .16);
   padding: 10px;
   display: flex;
   flex-direction: column;
   min-width: 190px;
-  z-index: 20;
+  max-width: 220px;
+  z-index: 250;
 }
 .add-block-menu button {
   border: none;
@@ -1447,7 +1507,7 @@ button {
 .help-fab:hover{ transform: translateY(-2px) scale(1.06); box-shadow: var(--shadow-lg); }
 .help-fab:active{ transform: scale(.95); }
 
-.modal-card.help-card{
+.help-card{
   width: 720px;
   max-width: 100%;
   max-height: 86vh;
@@ -2095,7 +2155,7 @@ button {
 .trash-item-actions .trash-delete-btn:hover{ background: rgba(239,68,68,.13); color: var(--danger); }
 
 /* ---------- SETTINGS MODAL ---------- */
-.modal-card.settings-card{
+.settings-card{
   width: 440px;
   max-width: 100%;
   padding: 26px;

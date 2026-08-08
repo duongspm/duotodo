@@ -82,6 +82,7 @@ const deletePageBtn = $("deletePageBtn");
 const blocksContainer = $("blocksContainer");
 const addBlockBtn = $("addBlockBtn");
 const addBlockMenu = $("addBlockMenu");
+const addBlockWrap = $("addBlockWrap");
 const imageFileInput = $("imageFileInput");
 const toastEl = $("toast");
 const confirmModal = $("confirmModal");
@@ -757,6 +758,22 @@ function iconEl(name, className) {
   return span;
 }
 
+function buildInsertZone(prevBlock, nextBlock) {
+  const zone = document.createElement("div");
+  zone.className = "block-insert-zone";
+  const btn = document.createElement("button");
+  btn.className = "block-insert-btn";
+  btn.type = "button";
+  btn.title = "Chèn khối vào đây";
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openAddBlockMenuAt(zone, prevBlock, nextBlock);
+  });
+  zone.appendChild(btn);
+  return zone;
+}
+
 function buildBlockEl(block, allBlocks) {
   const row = document.createElement("div");
   row.className = "block";
@@ -777,6 +794,10 @@ function buildBlockEl(block, allBlocks) {
     if (!draggedBlockId || draggedBlockId === block.id) return;
     reorderBlocks(draggedBlockId, block.id, allBlocks);
   });
+
+  const idx = allBlocks.findIndex((b) => b.id === block.id);
+  const prevBlock = idx > 0 ? allBlocks[idx - 1] : null;
+  row.appendChild(buildInsertZone(prevBlock, block));
 
   const handle = document.createElement("div");
   handle.className = "block-handle";
@@ -1497,23 +1518,65 @@ function buildLink(block) {
 }
 
 /* ---------------- Blocks: add / delete / reorder ---------------- */
-addBlockBtn.addEventListener("click", () => addBlockMenu.classList.toggle("hidden"));
+let pendingInsertOrder = null; // null = thêm vào cuối trang; số = chèn vào đúng vị trí đó
+
+/* Định vị menu "Thêm khối" bằng position:fixed + tọa độ tính bằng JS, gắn vào <body>.
+   Bắt buộc phải làm vậy vì layout mới có overflow:hidden (.page-view) và overflow-y:auto
+   (.blocksContainer) để cố định header/footer + cuộn phần giữa - nếu menu vẫn định vị kiểu
+   position:absolute theo phần tử cha như trước, nó sẽ bị các vùng overflow đó cắt mất/ẩn đi
+   mỗi khi mở từ 1 khối nằm giữa danh sách dài. */
+function positionAddBlockMenu(anchorEl) {
+  document.body.appendChild(addBlockMenu);
+  const rect = anchorEl.getBoundingClientRect();
+  const menuWidth = 200;
+  const menuHeightEstimate = 230;
+
+  let left = rect.left;
+  if (left + menuWidth > window.innerWidth - 12) left = window.innerWidth - menuWidth - 12;
+  left = Math.max(12, left);
+
+  let top = rect.bottom + 6;
+  if (top + menuHeightEstimate > window.innerHeight - 12) top = rect.top - menuHeightEstimate - 6;
+  top = Math.max(12, top);
+
+  addBlockMenu.style.left = `${left}px`;
+  addBlockMenu.style.top = `${top}px`;
+}
+
+function openAddBlockMenuAt(anchorEl, prevBlock, nextBlock) {
+  pendingInsertOrder = prevBlock ? (prevBlock.order + nextBlock.order) / 2 : nextBlock.order - 1;
+  positionAddBlockMenu(anchorEl);
+  addBlockMenu.classList.remove("hidden");
+}
+
+addBlockBtn.addEventListener("click", () => {
+  const willOpen = addBlockMenu.classList.contains("hidden");
+  pendingInsertOrder = null; // nút ở cuối trang luôn thêm vào cuối
+  if (willOpen) positionAddBlockMenu(addBlockBtn);
+  addBlockMenu.classList.toggle("hidden", !willOpen);
+});
 document.addEventListener("click", (e) => {
-  if (!addBlockBtn.contains(e.target) && !addBlockMenu.contains(e.target)) {
+  if (!addBlockBtn.contains(e.target) && !addBlockMenu.contains(e.target) && !e.target.closest(".block-insert-btn")) {
     addBlockMenu.classList.add("hidden");
   }
 });
 addBlockMenu.querySelectorAll("button[data-type]").forEach((btn) => {
   btn.addEventListener("click", () => {
     addBlockMenu.classList.add("hidden");
-    addBlock(btn.dataset.type);
+    addBlock(btn.dataset.type, pendingInsertOrder);
+    pendingInsertOrder = null;
   });
 });
 
-async function addBlock(type) {
+async function addBlock(type, insertOrder = null) {
   if (!currentPageId) return;
-  const snap = await getDocs(blocksCol(currentPageId));
-  const order = snap.size;
+  let order;
+  if (insertOrder !== null && insertOrder !== undefined) {
+    order = insertOrder;
+  } else {
+    const snap = await getDocs(blocksCol(currentPageId));
+    order = snap.size ? Math.max(...snap.docs.map((d) => d.data().order ?? 0)) + 1 : 0;
+  }
   const base = { type, order, uid: currentUser.uid, deleted: false, deletedAt: null, createdAt: serverTimestamp() };
   if (type === "todo") {
     Object.assign(base, {
