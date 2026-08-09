@@ -78,6 +78,9 @@ const emptyState = $("emptyState");
 const pageView = $("pageView");
 const pageIconBtn = $("pageIconBtn");
 const pageTitleEl = $("pageTitle");
+const pageDateLabel = $("pageDateLabel");
+const pageMenuBtn = $("pageMenuBtn");
+const pageMenu = $("pageMenu");
 const deletePageBtn = $("deletePageBtn");
 const blocksContainer = $("blocksContainer");
 const addBlockBtn = $("addBlockBtn");
@@ -402,6 +405,7 @@ function subscribeToPages() {
       const p = pagesById.get(currentPageId);
       if (document.activeElement !== pageTitleEl) pageTitleEl.textContent = p.title || "";
       pageIconBtn.textContent = p.icon || "📄";
+      renderPageDateLabel(p);
       renderBreadcrumb(currentPageId);
       renderPageTags(currentPageId);
     } else if (currentPageId && !pagesById.has(currentPageId)) {
@@ -654,6 +658,7 @@ function openPage(pageId) {
   const p = pagesById.get(pageId);
   pageTitleEl.textContent = p?.title || "";
   pageIconBtn.textContent = p?.icon || "📄";
+  renderPageDateLabel(p);
   renderBreadcrumb(pageId);
   renderPageTags(pageId);
   pushRecentPage(pageId);
@@ -2424,6 +2429,53 @@ paletteInput.addEventListener("keydown", (e) => {
     items[paletteActiveIndex]?.click();
   }
 });
+
+/* ---------------- Ngày tạo trang (hiện dưới tiêu đề) ---------------- */
+const VN_WEEKDAYS = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+function formatVietnameseDate(ts) {
+  if (!ts?.toDate) return "";
+  const d = ts.toDate();
+  return `${VN_WEEKDAYS[d.getDay()]}, ngày ${d.getDate()} tháng ${d.getMonth() + 1}`;
+}
+function renderPageDateLabel(page) {
+  pageDateLabel.textContent = formatVietnameseDate(page?.createdAt);
+}
+
+/* ---------------- Menu "..." của trang (thay nút xóa đứng riêng - sẽ thêm Sắp xếp/Nhóm ở đây sau) ---------------- */
+function positionFixedMenu(menuEl, anchorEl) {
+  document.body.appendChild(menuEl);
+  const rect = anchorEl.getBoundingClientRect();
+  const menuWidth = 200;
+  const menuHeightEstimate = 120;
+
+  let left = rect.right - menuWidth; // căn theo mép phải nút, giống ảnh minh họa
+  if (left < 12) left = rect.left;
+  left = Math.max(12, Math.min(left, window.innerWidth - menuWidth - 12));
+
+  let top = rect.bottom + 6;
+  if (top + menuHeightEstimate > window.innerHeight - 12) top = rect.top - menuHeightEstimate - 6;
+  top = Math.max(12, top);
+
+  menuEl.style.left = `${left}px`;
+  menuEl.style.top = `${top}px`;
+}
+
+pageMenuBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const willOpen = pageMenu.classList.contains("hidden");
+  if (willOpen) positionFixedMenu(pageMenu, pageMenuBtn);
+  pageMenu.classList.toggle("hidden", !willOpen);
+});
+document.addEventListener("click", (e) => {
+  if (!pageMenu.classList.contains("hidden") && !pageMenu.contains(e.target) && e.target !== pageMenuBtn) {
+    pageMenu.classList.add("hidden");
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !pageMenu.classList.contains("hidden")) pageMenu.classList.add("hidden");
+});
+// Xóa trang giờ nằm trong menu "..." - đóng menu trước khi mở confirm để tránh 2 lớp che nhau
+deletePageBtn.addEventListener("click", () => pageMenu.classList.add("hidden"), { capture: true });
 
 /* ---------------- Sidebar toggle (mobile) ---------------- */
 sidebarToggle.addEventListener("click", () => 

@@ -460,6 +460,7 @@ button {
 .page-tags-row{
   display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
   margin: -6px 0 18px 4px;
+  flex-shrink: 0;
 }
 .page-tag-chip{
   display: flex; align-items: center; gap: 5px;
@@ -1026,7 +1027,7 @@ button {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 8px;
   flex-shrink: 0;
 }
 .page-icon-btn {
@@ -1041,8 +1042,11 @@ button {
 .page-icon-btn:hover {
   background: var(--hover-bg);
 }
-.page-title {
+.page-header-main{
   flex: 1;
+  min-width: 0;
+}
+.page-title {
   font-size: clamp(25px, 3vw, 32px);
   font-weight: 700;
   outline: none;
@@ -1054,14 +1058,44 @@ button {
   content: attr(data-placeholder);
   color: var(--text-secondary);
 }
-.delete-page-btn {
-  margin-top: 1em;
+.page-date-label{
+  font-size: 12.5px;
+  color: var(--text-tertiary);
+  padding: 0 4px;
+  margin-top: -4px;
 }
-.delete-page-btn:hover {
-  background: rgba(239,68,68,.13);
-  color: var(--danger);
+
+/* ---------- Menu "..." của trang (thay cho nút xóa đứng riêng) ---------- */
+.page-menu-wrap{
+  position: relative;
+  flex-shrink: 0;
+  margin-top: 0.35em;
 }
-.page-tags-row{ flex-shrink: 0; }
+.page-menu-btn svg{ width: 18px; height: 18px; }
+.page-menu{
+  position: fixed; /* tránh bị .page-view (overflow:hidden) / .blocksContainer (overflow-y:auto) cắt mất, giống lỗi đã sửa ở menu Thêm khối */
+  min-width: 190px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.16);
+  padding: 6px;
+  z-index: 250;
+}
+.page-menu-item{
+  display: flex; align-items: center; gap: 9px;
+  width: 100%;
+  border: none; background: none;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: var(--text-primary);
+}
+.page-menu-item:hover{ background: var(--hover-bg); }
+.page-menu-item-danger{ color: var(--danger); }
+.page-menu-item-danger:hover{ background: rgba(239,68,68,.12); }
+.page-menu-item .chip-icon{ width: 15px; height: 15px; color: inherit; }
 
 /* ---------- BLOCKS ---------- */
 .blocks-container {

@@ -10,7 +10,7 @@
         if (theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
       } catch (e) {}
     })();
-  </script> 
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
@@ -267,16 +267,28 @@
         <div id="pageBreadcrumb" class="page-breadcrumb hidden"></div>
         <div class="page-header">
           <button id="pageIconBtn" class="page-icon-btn" title="Đổi biểu tượng">📄</button>
-          <div id="pageTitle" class="page-title" contenteditable="true" data-placeholder="Không có tiêu đề"></div>
-          <button id="deletePageBtn" class="icon-btn delete-page-btn" title="Xóa trang">
-            <img src="assets/imgs/Delete.svg" width="50" alt="delete">
-          </button>
+          <div class="page-header-main">
+            <div id="pageTitle" class="page-title" contenteditable="true" data-placeholder="Không có tiêu đề"></div>
+            <div id="pageDateLabel" class="page-date-label"></div>
+          </div>
+          <div class="page-menu-wrap">
+            <button id="pageMenuBtn" class="icon-btn page-menu-btn" title="Thêm tùy chọn">
+              <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+            </button>
+            <div id="pageMenu" class="page-menu hidden">
+              <!-- Chỗ này để dành sẵn cho "Sắp xếp" / "Nhóm" sau này -->
+              <button id="deletePageBtn" class="page-menu-item page-menu-item-danger">
+                <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span>
+                Xóa trang
+              </button>
+            </div>
+          </div>
         </div>
         <div id="pageTagsRow" class="page-tags-row"></div>
 
         <div id="blocksContainer" class="blocks-container"></div>
 
-        <div class="add-block-wrap">
+        <div id="addBlockWrap" class="add-block-wrap">
           <button id="addBlockBtn" class="add-block-btn">＋ Thêm khối</button>
           <div id="addBlockMenu" class="add-block-menu hidden">
             <button data-type="text"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="16" y2="12"/><line x1="4" y1="18" x2="12" y2="18"/></svg></span> Văn bản</button>
@@ -576,45 +588,44 @@
     <div class="modal-card settings-card">
       <button id="settingsCloseBtn" class="icon-btn detail-close-btn" title="Đóng">✕</button>
       <h2 class="help-title">Cài đặt</h2>
-      <div class="detail-inner">
-        <div class="settings-section">
-          <div class="settings-label">Tài khoản</div>
-          <div class="settings-account-row">
-            <img id="settingsAvatar" class="user-avatar settings-avatar" alt="">
-            <div>
-              <div id="settingsName" class="settings-account-name"></div>
-              <div id="settingsEmail" class="settings-account-email"></div>
-            </div>
-          </div>
-          <button id="settingsLogoutBtn" class="btn">Đăng xuất</button>
-        </div>
-  
-        <div class="settings-section">
-          <div class="settings-label">Giao diện</div>
-          <div class="settings-row">
-            <span>Chế độ sáng / tối</span>
-            <button id="themeToggleSettingsBtn" class="icon-btn settings-theme-btn" title="Đổi giao diện sáng/tối">
-              <span class="theme-icon theme-icon-sun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg></span>
-              <span class="theme-icon theme-icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></span>
-            </button>
+
+      <div class="settings-section">
+        <div class="settings-label">Tài khoản</div>
+        <div class="settings-account-row">
+          <img id="settingsAvatar" class="user-avatar settings-avatar" alt="">
+          <div>
+            <div id="settingsName" class="settings-account-name"></div>
+            <div id="settingsEmail" class="settings-account-email"></div>
           </div>
         </div>
-  
-        <div class="settings-section">
-          <div class="settings-label">Bảo mật</div>
-          <p class="settings-desc">Đặt mật khẩu phụ để đăng nhập bằng Email trên máy lạ, không cần mở popup Google (tránh lưu phiên Google trên thiết bị đó).</p>
-          <div id="settingsPasswordForm">
-            <input id="settingsNewPasswordInput" type="password" placeholder="Mật khẩu phụ (tối thiểu 6 ký tự)" class="settings-password-input" />
-            <button id="settingsSetPasswordBtn" class="btn btn-primary">Đặt mật khẩu phụ</button>
-          </div>
-          <p id="settingsPasswordDone" class="settings-desc hidden">✅ Đã thiết lập — dùng email <strong id="settingsEmailInline"></strong> + mật khẩu phụ để đăng nhập trên máy khác.</p>
+        <button id="settingsLogoutBtn" class="btn">Đăng xuất</button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">Giao diện</div>
+        <div class="settings-row">
+          <span>Chế độ sáng / tối</span>
+          <button id="themeToggleSettingsBtn" class="icon-btn settings-theme-btn" title="Đổi giao diện sáng/tối">
+            <span class="theme-icon theme-icon-sun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg></span>
+            <span class="theme-icon theme-icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></span>
+          </button>
         </div>
-  
-        <div class="settings-section">
-          <div class="settings-label">Dữ liệu &amp; lưu trữ</div>
-          <p class="settings-desc">Trang và khối đã xóa được lưu trong Thùng rác <strong>30 ngày</strong> trước khi bị xóa vĩnh viễn.</p>
-          <button id="settingsOpenTrashBtn" class="btn">🗑 Mở thùng rác</button>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">Bảo mật</div>
+        <p class="settings-desc">Đặt mật khẩu phụ để đăng nhập bằng Email trên máy lạ, không cần mở popup Google (tránh lưu phiên Google trên thiết bị đó).</p>
+        <div id="settingsPasswordForm">
+          <input id="settingsNewPasswordInput" type="password" placeholder="Mật khẩu phụ (tối thiểu 6 ký tự)" class="settings-password-input" />
+          <button id="settingsSetPasswordBtn" class="btn btn-primary">Đặt mật khẩu phụ</button>
         </div>
+        <p id="settingsPasswordDone" class="settings-desc hidden">✅ Đã thiết lập — dùng email <strong id="settingsEmailInline"></strong> + mật khẩu phụ để đăng nhập trên máy khác.</p>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-label">Dữ liệu &amp; lưu trữ</div>
+        <p class="settings-desc">Trang và khối đã xóa được lưu trong Thùng rác <strong>30 ngày</strong> trước khi bị xóa vĩnh viễn.</p>
+        <button id="settingsOpenTrashBtn" class="btn">🗑 Mở thùng rác</button>
       </div>
     </div>
   </div>
