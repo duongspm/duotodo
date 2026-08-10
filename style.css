@@ -1097,6 +1097,95 @@ button {
 .page-menu-item-danger:hover{ background: rgba(239,68,68,.12); }
 .page-menu-item .chip-icon{ width: 15px; height: 15px; color: inherit; }
 
+/* ---------- Sắp xếp / Nhóm (page-header) ---------- */
+.page-header-actions{
+  display: flex; align-items: center; gap: 6px;
+  flex-shrink: 0;
+  margin-top: 0.5em;
+}
+.page-action-wrap{ position: relative; }
+.page-action-btn{
+  display: flex; align-items: center; gap: 6px;
+  border: none; background: none;
+  color: var(--text-secondary);
+  font-size: 13px; font-weight: 500;
+  padding: 6px 9px;
+  border-radius: var(--radius);
+  transition: background .12s ease, color .12s ease;
+}
+.page-action-btn svg{ width: 15px; height: 15px; }
+.page-action-btn:hover{ background: var(--hover-bg); color: var(--text-primary); }
+.page-action-btn.active{ background: var(--accent-soft); color: var(--accent); }
+
+.page-action-menu{
+  position: fixed; /* cùng cơ chế chống bị cắt như menu Thêm khối / menu "..." */
+  min-width: 230px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 32px rgba(0,0,0,.18);
+  padding: 6px;
+  z-index: 250;
+}
+.page-action-menu-title{
+  font-size: 11.5px; font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase; letter-spacing: .03em;
+  padding: 8px 10px 6px;
+}
+.page-action-menu-item{
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  border: none; background: none;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: var(--text-primary);
+}
+.page-action-menu-item:hover{ background: var(--hover-bg); }
+.page-action-menu-item.active{ background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.page-action-menu-item .chip-icon{ width: 16px; height: 16px; color: inherit; flex-shrink: 0; }
+
+/* ---------- Banner trạng thái Sắp xếp / Nhóm đang áp dụng ---------- */
+.view-status-bar{
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin: 2px 0 14px;
+  flex-shrink: 0;
+}
+.view-status-chip{
+  display: inline-flex; align-items: center; gap: 7px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 12px; font-weight: 500;
+  padding: 5px 6px 5px 10px;
+  border-radius: 999px;
+}
+.view-status-chip button{
+  border: none; background: none;
+  color: var(--text-tertiary);
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  font-size: 11px;
+  display: flex; align-items: center; justify-content: center;
+}
+.view-status-chip button:hover{ background: rgba(239,68,68,.14); color: var(--danger); }
+
+/* ---------- Nhóm khối: tiêu đề nhóm ---------- */
+.block-group-label{
+  font-size: 12px; font-weight: 700;
+  letter-spacing: .03em; text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 14px 4px 6px;
+}
+.block-group-label:first-child{ padding-top: 0; }
+
+@media (max-width: 720px){
+  .page-action-btn span, .page-action-btn{ font-size: 0; gap: 0; padding: 6px; }
+  .page-action-btn svg{ width: 17px; height: 17px; }
+}
+
 /* ---------- BLOCKS ---------- */
 .blocks-container {
   display: flex;
@@ -1254,6 +1343,20 @@ button {
   transition: opacity .15s ease, background .12s ease, color .12s ease, transform .12s ease;
 }
 .block-delete svg{width:14px;height:14px;}
+.block-time{
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  align-self: center;
+  opacity: 0;
+  transition: opacity .15s ease;
+  cursor: default;
+}
+.block:hover .block-time{ opacity: 1; }
+@media (max-width: 640px){
+  .block-time{ display: none; } /* màn hình nhỏ ưu tiên chỗ cho nội dung, bỏ giờ tạo để đỡ chật */
+}
 .block:hover .block-delete {
   opacity: 1;
 }

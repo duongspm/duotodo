@@ -1,0 +1,3 @@
+modal setting
+modal hướng dẫn
+viewStatusBar di chuyển sang bên phải

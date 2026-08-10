@@ -81,6 +81,15 @@ const pageTitleEl = $("pageTitle");
 const pageDateLabel = $("pageDateLabel");
 const pageMenuBtn = $("pageMenuBtn");
 const pageMenu = $("pageMenu");
+const sortBtn = $("sortBtn");
+const sortMenu = $("sortMenu");
+const groupBtn = $("groupBtn");
+const groupMenu = $("groupMenu");
+const viewStatusBar = $("viewStatusBar");
+const sortStatusChip = $("sortStatusChip");
+const groupStatusChip = $("groupStatusChip");
+const clearSortBtn = $("clearSortBtn");
+const clearGroupBtn = $("clearGroupBtn");
 const deletePageBtn = $("deletePageBtn");
 const blocksContainer = $("blocksContainer");
 const addBlockBtn = $("addBlockBtn");
@@ -178,6 +187,9 @@ let unsubPages = null;
 let unsubBlocks = null;
 let unsubToday = null;
 let blockElements = new Map(); // blockId -> rendered DOM element, for reconciled re-render
+let activeSortMode = null; // null | 'dueDate' | 'alpha' | 'createdAt'
+let activeGroupMode = null; // null | 'type' | 'todoStatus' | 'dueDate'
+let latestBlocks = []; // cache của lần snapshot gần nhất, để sắp xếp/nhóm lại ngay không cần chờ Firestore
 let pendingImageBlockId = null;
 let pagesFirstLoadDone = false;
 let currentView = "empty"; // 'empty' | 'page' | 'today' | 'trash'
@@ -662,6 +674,10 @@ function openPage(pageId) {
   renderBreadcrumb(pageId);
   renderPageTags(pageId);
   pushRecentPage(pageId);
+  activeSortMode = null;
+  activeGroupMode = null;
+  latestBlocks = [];
+  updateViewStatusBar();
 
   pageView.classList.add("hidden");
   pageSkeleton.classList.remove("hidden");
@@ -675,6 +691,7 @@ function subscribeToBlocks(pageId) {
   if (unsubBlocks) unsubBlocks();
   blockElements.clear();
   blocksContainer.innerHTML = ""; // xóa DOM block của trang cũ, tránh bị lặp khi chuyển trang
+  blocksViewWasGrouped = false;
   let firstLoad = true;
   const q = query(blocksCol(pageId), orderBy("order", "asc"));
   unsubBlocks = onSnapshot(q, (snap) => {
@@ -684,7 +701,8 @@ function subscribeToBlocks(pageId) {
       pageView.classList.remove("hidden");
     }
     const blocks = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((b) => !b.deleted);
-    renderBlocks(blocks);
+    latestBlocks = blocks;
+    renderBlocksView(blocks);
     // Tự vá field "uid" / "deleted" cho block cũ tạo trước khi có các field này
     snap.docs.forEach((d) => {
       const data = d.data();
@@ -704,7 +722,16 @@ function subscribeToBlocks(pageId) {
 /* ---------------- Blocks: render ---------------- */
 let draggedBlockId = null;
 
+let blocksViewWasGrouped = false; // để renderBlocks() biết cần dọn sạch label nhóm còn sót khi chuyển từ chế độ Nhóm về phẳng
+
 function renderBlocks(blocks) {
+  if (blocksViewWasGrouped) {
+    // Chuyển từ chế độ Nhóm về phẳng: các .block-group-label không nằm trong blockElements
+    // nên cơ chế dọn dẹp bên dưới (dựa theo id) sẽ bỏ sót chúng - phải xóa sạch DOM trước.
+    blockElements.clear();
+    blocksContainer.innerHTML = "";
+    blocksViewWasGrouped = false;
+  }
   // Chỉ "bảo vệ" DOM khi người dùng đang THỰC SỰ gõ chữ (contenteditable/input/textarea).
   // Trước đây bảo vệ luôn khi bấm nút (ưu tiên, ngày hạn...) khiến phải load lại trang mới thấy cập nhật.
   const active = document.activeElement;
@@ -785,7 +812,10 @@ function buildBlockEl(block, allBlocks) {
   row.draggable = false; // chỉ bật draggable khi bắt đầu kéo từ tay cầm (xem handle.mousedown bên dưới)
   row.dataset.id = block.id;
 
+  const reorderDisabled = !!(activeSortMode || activeGroupMode);
+
   row.addEventListener("dragstart", () => {
+    if (reorderDisabled) return;
     draggedBlockId = block.id;
     row.classList.add("dragging");
   });
@@ -793,8 +823,9 @@ function buildBlockEl(block, allBlocks) {
     row.classList.remove("dragging");
     row.draggable = false;
   });
-  row.addEventListener("dragover", (e) => e.preventDefault());
+  row.addEventListener("dragover", (e) => { if (!reorderDisabled) e.preventDefault(); });
   row.addEventListener("drop", (e) => {
+    if (reorderDisabled) return;
     e.preventDefault();
     if (!draggedBlockId || draggedBlockId === block.id) return;
     reorderBlocks(draggedBlockId, block.id, allBlocks);
@@ -802,13 +833,19 @@ function buildBlockEl(block, allBlocks) {
 
   const idx = allBlocks.findIndex((b) => b.id === block.id);
   const prevBlock = idx > 0 ? allBlocks[idx - 1] : null;
-  row.appendChild(buildInsertZone(prevBlock, block));
+  if (!reorderDisabled) row.appendChild(buildInsertZone(prevBlock, block));
 
   const handle = document.createElement("div");
   handle.className = "block-handle";
   handle.appendChild(iconEl("grip"));
-  handle.addEventListener("mousedown", () => { row.draggable = true; });
-  handle.addEventListener("mouseup", () => { row.draggable = false; });
+  if (reorderDisabled) {
+    handle.style.opacity = "0.25";
+    handle.style.cursor = "not-allowed";
+    handle.title = "Bỏ Sắp xếp/Nhóm để kéo-thả sắp xếp thủ công";
+  } else {
+    handle.addEventListener("mousedown", () => { row.draggable = true; });
+    handle.addEventListener("mouseup", () => { row.draggable = false; });
+  }
 
   const typeIcon = iconEl(block.type === "heading" ? "heading" : block.type, "block-type-icon");
 
@@ -822,9 +859,46 @@ function buildBlockEl(block, allBlocks) {
   del.title = "Xóa khối";
   del.addEventListener("click", () => deleteBlock(block));
 
-  row.append(handle, typeIcon, body, del);
+  const timeLabel = document.createElement("span");
+  timeLabel.className = "block-time";
+  timeLabel.dataset.createdAt = block.createdAt?.toMillis ? block.createdAt.toMillis() : "";
+  timeLabel.textContent = formatBlockTime(block.createdAt);
+  timeLabel.title = fullDateTimeLabel(block.createdAt);
+
+  row.append(handle, typeIcon, body, timeLabel, del);
   return row;
 }
+
+/* ---------------- Thời gian tạo khối ---------------- */
+function formatBlockTime(ts) {
+  if (!ts?.toDate) return "";
+  const d = ts.toDate();
+  const diffMs = Date.now() - d.getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return "Vừa xong";
+  if (min < 60) return `${min} phút trước`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} giờ trước`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day} ngày trước`;
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  const datePart = `${d.getDate()} thg ${d.getMonth() + 1}`;
+  return sameYear ? datePart : `${datePart}, ${d.getFullYear()}`;
+}
+function fullDateTimeLabel(ts) {
+  if (!ts?.toDate) return "";
+  const d = ts.toDate();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `Tạo lúc ${hh}:${mm}, ${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+}
+setInterval(() => {
+  document.querySelectorAll(".block-time").forEach((el) => {
+    const ms = Number(el.dataset.createdAt);
+    if (!ms) return;
+    el.textContent = formatBlockTime({ toDate: () => new Date(ms) });
+  });
+}, 60000);
 
 function buildBlockBody(block) {
   switch (block.type) {
@@ -2476,6 +2550,180 @@ document.addEventListener("keydown", (e) => {
 });
 // Xóa trang giờ nằm trong menu "..." - đóng menu trước khi mở confirm để tránh 2 lớp che nhau
 deletePageBtn.addEventListener("click", () => pageMenu.classList.add("hidden"), { capture: true });
+
+/* ---------------- Sắp xếp & Nhóm khối ---------------- */
+function getBlockSortText(block) {
+  if (block.type === "link") return (block.label || block.url || "").toLowerCase();
+  if (block.type === "image") return "hình ảnh";
+  return (block.content || "").toLowerCase();
+}
+function blockDueMillis(block) {
+  if (block.type !== "todo" || !block.dueDate) return Infinity;
+  return new Date(`${block.dueDate}T${block.dueTime || "00:00"}`).getTime();
+}
+const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
+function blockPriorityRank(block) {
+  if (block.type !== "todo" || !block.priority) return Infinity; // không có ưu tiên -> đẩy xuống cuối
+  return PRIORITY_RANK[block.priority] ?? Infinity;
+}
+function sortBlocks(blocks, mode) {
+  const arr = [...blocks];
+  if (mode === "priority") {
+    arr.sort((a, b) => blockPriorityRank(a) - blockPriorityRank(b));
+  } else if (mode === "alpha") {
+    arr.sort((a, b) => getBlockSortText(a).localeCompare(getBlockSortText(b), "vi"));
+  } else if (mode === "createdAt") {
+    arr.sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0));
+  } else if (mode === "dueDate") {
+    arr.sort((a, b) => blockDueMillis(a) - blockDueMillis(b));
+  }
+  return arr;
+}
+
+const BLOCK_TYPE_LABELS = { heading: "Tiêu đề", todo: "Việc cần làm", text: "Văn bản", image: "Hình ảnh", link: "Liên kết" };
+const PRIORITY_GROUP_LABELS = { high: "🔴 Cao", medium: "🟠 Trung bình", low: "🔵 Thấp" };
+function groupBlocks(blocks, mode) {
+  if (mode === "priority") {
+    const buckets = { high: [], medium: [], low: [], none: [] };
+    blocks.forEach((b) => {
+      if (b.type === "todo" && b.priority) buckets[b.priority].push(b);
+      else buckets.none.push(b);
+    });
+    const groups = [];
+    ["high", "medium", "low"].forEach((p) => { if (buckets[p].length) groups.push({ label: PRIORITY_GROUP_LABELS[p], items: buckets[p] }); });
+    if (buckets.none.length) groups.push({ label: "Không có độ ưu tiên", items: buckets.none });
+    return groups;
+  }
+  if (mode === "type") {
+    const order = ["heading", "todo", "text", "image", "link"];
+    const buckets = {};
+    blocks.forEach((b) => { (buckets[b.type] ||= []).push(b); });
+    return order.filter((t) => buckets[t]?.length).map((t) => ({ label: BLOCK_TYPE_LABELS[t], items: buckets[t] }));
+  }
+  if (mode === "todoStatus") {
+    const notDone = blocks.filter((b) => b.type === "todo" && !b.checked);
+    const done = blocks.filter((b) => b.type === "todo" && b.checked);
+    const others = blocks.filter((b) => b.type !== "todo");
+    const groups = [];
+    if (notDone.length) groups.push({ label: "Chưa hoàn thành", items: notDone });
+    if (done.length) groups.push({ label: "Đã hoàn thành", items: done });
+    if (others.length) groups.push({ label: "Khác (không phải việc cần làm)", items: others });
+    return groups;
+  }
+  if (mode === "dueDate") {
+    const buckets = { overdue: [], today: [], upcoming: [], none: [] };
+    blocks.forEach((b) => {
+      if (b.type !== "todo" || !b.dueDate) buckets.none.push(b);
+      else buckets[dueStatus(b.dueDate)].push(b);
+    });
+    const groups = [];
+    if (buckets.overdue.length) groups.push({ label: "⚠️ Quá hạn", items: buckets.overdue });
+    if (buckets.today.length) groups.push({ label: "☀️ Hôm nay", items: buckets.today });
+    if (buckets.upcoming.length) groups.push({ label: "📆 Sắp tới", items: buckets.upcoming });
+    if (buckets.none.length) groups.push({ label: "Không có hạn / Khác", items: buckets.none });
+    return groups;
+  }
+  return [{ label: null, items: blocks }];
+}
+
+function renderBlocksView(blocks) {
+  let list = blocks;
+  if (activeSortMode) list = sortBlocks(list, activeSortMode);
+
+  if (activeGroupMode) {
+    renderBlocksGrouped(groupBlocks(list, activeGroupMode));
+  } else {
+    renderBlocks(list);
+  }
+}
+
+function renderBlocksGrouped(groups) {
+  const active = document.activeElement;
+  const isEditingText = !!active && (active.isContentEditable || active.tagName === "INPUT" || active.tagName === "TEXTAREA");
+  if (isEditingText && blocksContainer.contains(active)) return; // đang gõ dở - bỏ qua lần render này để không mất nội dung/con trỏ
+
+  blockElements.clear();
+  blocksContainer.innerHTML = "";
+  blocksViewWasGrouped = true;
+  const flatOrder = groups.flatMap((g) => g.items);
+  groups.forEach((g) => {
+    if (g.label) {
+      const label = document.createElement("div");
+      label.className = "block-group-label";
+      label.textContent = `${g.label} (${g.items.length})`;
+      blocksContainer.appendChild(label);
+    }
+    g.items.forEach((b) => {
+      const el = buildBlockEl(b, flatOrder);
+      blockElements.set(b.id, el);
+      blocksContainer.appendChild(el);
+    });
+  });
+}
+
+const SORT_MODE_LABELS = { priority: "Độ ưu tiên", dueDate: "Ngày đến hạn", alpha: "A → Z", createdAt: "Ngày tạo" };
+const GROUP_MODE_LABELS = { type: "Loại khối", priority: "Độ ưu tiên", todoStatus: "Trạng thái hoàn thành", dueDate: "Ngày đến hạn" };
+
+function updateViewStatusBar() {
+  sortStatusChip.classList.toggle("hidden", !activeSortMode);
+  if (activeSortMode) sortStatusChip.querySelector(".view-status-label").textContent = `↕ Sắp xếp: ${SORT_MODE_LABELS[activeSortMode]}`;
+  groupStatusChip.classList.toggle("hidden", !activeGroupMode);
+  if (activeGroupMode) groupStatusChip.querySelector(".view-status-label").textContent = `▤ Nhóm: ${GROUP_MODE_LABELS[activeGroupMode]}`;
+  viewStatusBar.classList.toggle("hidden", !activeSortMode && !activeGroupMode);
+  sortBtn.classList.toggle("active", !!activeSortMode);
+  groupBtn.classList.toggle("active", !!activeGroupMode);
+  sortMenu.querySelectorAll("[data-sort]").forEach((b) => b.classList.toggle("active", b.dataset.sort === (activeSortMode || "none")));
+  groupMenu.querySelectorAll("[data-group]").forEach((b) => b.classList.toggle("active", b.dataset.group === (activeGroupMode || "none")));
+}
+
+sortBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const willOpen = sortMenu.classList.contains("hidden");
+  groupMenu.classList.add("hidden");
+  if (willOpen) positionFixedMenu(sortMenu, sortBtn);
+  sortMenu.classList.toggle("hidden", !willOpen);
+});
+groupBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const willOpen = groupMenu.classList.contains("hidden");
+  sortMenu.classList.add("hidden");
+  if (willOpen) positionFixedMenu(groupMenu, groupBtn);
+  groupMenu.classList.toggle("hidden", !willOpen);
+});
+document.addEventListener("click", (e) => {
+  if (!sortMenu.classList.contains("hidden") && !sortMenu.contains(e.target) && !sortBtn.contains(e.target)) sortMenu.classList.add("hidden");
+  if (!groupMenu.classList.contains("hidden") && !groupMenu.contains(e.target) && !groupBtn.contains(e.target)) groupMenu.classList.add("hidden");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { sortMenu.classList.add("hidden"); groupMenu.classList.add("hidden"); }
+});
+
+sortMenu.querySelectorAll("[data-sort]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    activeSortMode = btn.dataset.sort === "none" ? null : btn.dataset.sort;
+    sortMenu.classList.add("hidden");
+    updateViewStatusBar();
+    renderBlocksView(latestBlocks);
+  });
+});
+groupMenu.querySelectorAll("[data-group]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    activeGroupMode = btn.dataset.group === "none" ? null : btn.dataset.group;
+    groupMenu.classList.add("hidden");
+    updateViewStatusBar();
+    renderBlocksView(latestBlocks);
+  });
+});
+clearSortBtn.addEventListener("click", () => {
+  activeSortMode = null;
+  updateViewStatusBar();
+  renderBlocksView(latestBlocks);
+});
+clearGroupBtn.addEventListener("click", () => {
+  activeGroupMode = null;
+  updateViewStatusBar();
+  renderBlocksView(latestBlocks);
+});
 
 /* ---------------- Sidebar toggle (mobile) ---------------- */
 sidebarToggle.addEventListener("click", () => 
