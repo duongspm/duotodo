@@ -720,25 +720,24 @@ button {
 }
 .page-node .node-actions {
   display: none;
-  gap: 2px;
   flex-shrink: 0;
 }
 .page-node:hover .node-actions {
   display: flex;
 }
-.node-actions button {
+.node-menu-btn {
   border: none;
   background: none;
-  width: 20px;
-  height: 20px;
-  font-size: 12px;
-  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.node-actions button:hover {
+.node-menu-btn svg{ width: 15px; height: 15px; }
+.node-menu-btn:hover {
   background: var(--border);
   color: var(--text-primary);
 }
@@ -751,9 +750,7 @@ button {
   border-radius: 10px;
   padding: 1px 7px;
   margin-right: 2px;
-}
-.page-node:hover .node-badge {
-  display: none;
+  cursor: default;
 }
 
 /* ---------- MAIN CONTENT ---------- */

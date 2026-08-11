@@ -1,3 +1,4 @@
 modal setting
 modal hướng dẫn
 viewStatusBar di chuyển sang bên phải
+sitebar: xóa thùng rác ở bottom, xóa đăng xuất , theme ở top

@@ -80,6 +80,7 @@ const pageIconBtn = $("pageIconBtn");
 const pageTitleEl = $("pageTitle");
 const pageDateLabel = $("pageDateLabel");
 const pageMenuBtn = $("pageMenuBtn");
+const nodeActionsMenu = $("nodeActionsMenu");
 const pageMenu = $("pageMenu");
 const sortBtn = $("sortBtn");
 const sortMenu = $("sortMenu");
@@ -190,6 +191,7 @@ let blockElements = new Map(); // blockId -> rendered DOM element, for reconcile
 let activeSortMode = null; // null | 'dueDate' | 'alpha' | 'createdAt'
 let activeGroupMode = null; // null | 'type' | 'todoStatus' | 'dueDate'
 let latestBlocks = []; // cache của lần snapshot gần nhất, để sắp xếp/nhóm lại ngay không cần chờ Firestore
+let nodeActionsPendingPageId = null; // page mà menu "⋮" trong sidebar tree đang mở cho
 let pendingImageBlockId = null;
 let pagesFirstLoadDone = false;
 let currentView = "empty"; // 'empty' | 'page' | 'today' | 'trash'
@@ -471,26 +473,22 @@ function buildNode(page) {
   if (page.todoOpenCount > 0) {
     badge.className = "node-badge";
     badge.textContent = page.todoOpenCount;
+    badge.title = `${page.todoOpenCount} việc cần làm chưa xong`;
   }
 
   const actions = document.createElement("span");
   actions.className = "node-actions";
-  const addChildBtn = document.createElement("button");
-  addChildBtn.textContent = "➕";
-  addChildBtn.title = "Thêm trang con";
-  addChildBtn.addEventListener("click", (e) => {
+  const menuBtn = document.createElement("button");
+  menuBtn.className = "node-menu-btn";
+  menuBtn.title = "Thêm tùy chọn";
+  menuBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
+  menuBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    expandedIds.add(page.id);
-    createPage(page.id);
+    nodeActionsPendingPageId = page.id;
+    positionFixedMenu(nodeActionsMenu, menuBtn);
+    nodeActionsMenu.classList.remove("hidden");
   });
-  const delBtn = document.createElement("button");
-  delBtn.textContent = "❌";
-  delBtn.title = "Xóa trang";
-  delBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    deletePageWithConfirm(page.id, page.title);
-  });
-  actions.append(addChildBtn, delBtn);
+  actions.appendChild(menuBtn);
 
   row.append(caret, icon, title, badge, actions);
   row.addEventListener("click", () => openPage(page.id));
@@ -2561,16 +2559,9 @@ function blockDueMillis(block) {
   if (block.type !== "todo" || !block.dueDate) return Infinity;
   return new Date(`${block.dueDate}T${block.dueTime || "00:00"}`).getTime();
 }
-const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
-function blockPriorityRank(block) {
-  if (block.type !== "todo" || !block.priority) return Infinity; // không có ưu tiên -> đẩy xuống cuối
-  return PRIORITY_RANK[block.priority] ?? Infinity;
-}
 function sortBlocks(blocks, mode) {
   const arr = [...blocks];
-  if (mode === "priority") {
-    arr.sort((a, b) => blockPriorityRank(a) - blockPriorityRank(b));
-  } else if (mode === "alpha") {
+  if (mode === "alpha") {
     arr.sort((a, b) => getBlockSortText(a).localeCompare(getBlockSortText(b), "vi"));
   } else if (mode === "createdAt") {
     arr.sort((a, b) => (a.createdAt?.toMillis?.() ?? 0) - (b.createdAt?.toMillis?.() ?? 0));
@@ -2581,19 +2572,7 @@ function sortBlocks(blocks, mode) {
 }
 
 const BLOCK_TYPE_LABELS = { heading: "Tiêu đề", todo: "Việc cần làm", text: "Văn bản", image: "Hình ảnh", link: "Liên kết" };
-const PRIORITY_GROUP_LABELS = { high: "🔴 Cao", medium: "🟠 Trung bình", low: "🔵 Thấp" };
 function groupBlocks(blocks, mode) {
-  if (mode === "priority") {
-    const buckets = { high: [], medium: [], low: [], none: [] };
-    blocks.forEach((b) => {
-      if (b.type === "todo" && b.priority) buckets[b.priority].push(b);
-      else buckets.none.push(b);
-    });
-    const groups = [];
-    ["high", "medium", "low"].forEach((p) => { if (buckets[p].length) groups.push({ label: PRIORITY_GROUP_LABELS[p], items: buckets[p] }); });
-    if (buckets.none.length) groups.push({ label: "Không có độ ưu tiên", items: buckets.none });
-    return groups;
-  }
   if (mode === "type") {
     const order = ["heading", "todo", "text", "image", "link"];
     const buckets = {};
@@ -2661,8 +2640,8 @@ function renderBlocksGrouped(groups) {
   });
 }
 
-const SORT_MODE_LABELS = { priority: "Độ ưu tiên", dueDate: "Ngày đến hạn", alpha: "A → Z", createdAt: "Ngày tạo" };
-const GROUP_MODE_LABELS = { type: "Loại khối", priority: "Độ ưu tiên", todoStatus: "Trạng thái hoàn thành", dueDate: "Ngày đến hạn" };
+const SORT_MODE_LABELS = { dueDate: "Ngày đến hạn", alpha: "Thứ tự bảng chữ cái", createdAt: "Ngày tạo" };
+const GROUP_MODE_LABELS = { type: "Loại khối", todoStatus: "Trạng thái hoàn thành", dueDate: "Ngày đến hạn" };
 
 function updateViewStatusBar() {
   sortStatusChip.classList.toggle("hidden", !activeSortMode);
@@ -2672,8 +2651,8 @@ function updateViewStatusBar() {
   viewStatusBar.classList.toggle("hidden", !activeSortMode && !activeGroupMode);
   sortBtn.classList.toggle("active", !!activeSortMode);
   groupBtn.classList.toggle("active", !!activeGroupMode);
-  sortMenu.querySelectorAll("[data-sort]").forEach((b) => b.classList.toggle("active", b.dataset.sort === (activeSortMode || "none")));
-  groupMenu.querySelectorAll("[data-group]").forEach((b) => b.classList.toggle("active", b.dataset.group === (activeGroupMode || "none")));
+  sortMenu.querySelectorAll("[data-sort]").forEach((b) => b.classList.toggle("active", b.dataset.sort === activeSortMode));
+  groupMenu.querySelectorAll("[data-group]").forEach((b) => b.classList.toggle("active", b.dataset.group === activeGroupMode));
 }
 
 sortBtn.addEventListener("click", (e) => {
@@ -2700,7 +2679,7 @@ document.addEventListener("keydown", (e) => {
 
 sortMenu.querySelectorAll("[data-sort]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    activeSortMode = btn.dataset.sort === "none" ? null : btn.dataset.sort;
+    activeSortMode = activeSortMode === btn.dataset.sort ? null : btn.dataset.sort; // bấm lại mục đang chọn = bỏ chọn
     sortMenu.classList.add("hidden");
     updateViewStatusBar();
     renderBlocksView(latestBlocks);
@@ -2708,7 +2687,7 @@ sortMenu.querySelectorAll("[data-sort]").forEach((btn) => {
 });
 groupMenu.querySelectorAll("[data-group]").forEach((btn) => {
   btn.addEventListener("click", () => {
-    activeGroupMode = btn.dataset.group === "none" ? null : btn.dataset.group;
+    activeGroupMode = activeGroupMode === btn.dataset.group ? null : btn.dataset.group;
     groupMenu.classList.add("hidden");
     updateViewStatusBar();
     renderBlocksView(latestBlocks);
@@ -2723,6 +2702,31 @@ clearGroupBtn.addEventListener("click", () => {
   activeGroupMode = null;
   updateViewStatusBar();
   renderBlocksView(latestBlocks);
+});
+
+/* ---------------- Menu "..." của từng trang trong sidebar tree ---------------- */
+document.addEventListener("click", (e) => {
+  if (!nodeActionsMenu.classList.contains("hidden") && !nodeActionsMenu.contains(e.target) && !e.target.closest(".node-menu-btn")) {
+    nodeActionsMenu.classList.add("hidden");
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !nodeActionsMenu.classList.contains("hidden")) nodeActionsMenu.classList.add("hidden");
+});
+nodeActionsMenu.querySelectorAll("[data-node-action]").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    nodeActionsMenu.classList.add("hidden");
+    const pageId = nodeActionsPendingPageId;
+    if (!pageId) return;
+    const page = pagesById.get(pageId);
+    if (btn.dataset.nodeAction === "add-child") {
+      expandedIds.add(pageId);
+      createPage(pageId);
+    } else if (btn.dataset.nodeAction === "delete") {
+      deletePageWithConfirm(pageId, page?.title);
+    }
+  });
 });
 
 /* ---------------- Sidebar toggle (mobile) ---------------- */
