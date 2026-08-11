@@ -183,6 +183,7 @@ const settingsSetPasswordBtn = $("settingsSetPasswordBtn");
 let currentUser = null;
 let pagesById = new Map();       // id -> page data
 let expandedIds = new Set();
+let draggedPageId = null; // trang đang được kéo trong sidebar tree
 let currentPageId = null;
 let unsubPages = null;
 let unsubBlocks = null;
@@ -431,6 +432,58 @@ function subscribeToPages() {
   });
 }
 
+function clearTreeDropIndicators() {
+  document.querySelectorAll(".page-node.drop-before, .page-node.drop-inside, .page-node.drop-after")
+    .forEach((el) => el.classList.remove("drop-before", "drop-inside", "drop-after"));
+}
+
+function isDescendantOf(candidateId, ancestorId) {
+  let cur = pagesById.get(candidateId);
+  while (cur?.parentId) {
+    if (cur.parentId === ancestorId) return true;
+    cur = pagesById.get(cur.parentId);
+  }
+  return false;
+}
+
+async function moveTreeNode(draggedId, targetId, zone) {
+  if (draggedId === targetId) return;
+  // Không cho thả 1 trang vào chính nó hoặc vào trang con/cháu của nó (tránh vòng lặp vô hạn)
+  if (targetId === draggedId || isDescendantOf(targetId, draggedId)) {
+    showToast("Không thể chuyển trang vào chính trang con của nó");
+    return;
+  }
+  const dragged = pagesById.get(draggedId);
+  const target = pagesById.get(targetId);
+  if (!dragged || !target) return;
+
+  if (zone === "inside") {
+    const siblings = [...pagesById.values()].filter((p) => p.parentId === targetId && !p.deleted && p.id !== draggedId);
+    const maxOrder = siblings.length ? Math.max(...siblings.map((p) => p.order ?? 0)) : -1;
+    await updateDoc(doc(db, "users", currentUser.uid, "pages", draggedId), {
+      parentId: targetId, order: maxOrder + 1, updatedAt: serverTimestamp()
+    });
+    expandedIds.add(targetId);
+    showToast(`Đã chuyển vào trong "${target.title || "trang này"}"`);
+    return;
+  }
+
+  const newParentId = target.parentId || null;
+  const siblings = [...pagesById.values()]
+    .filter((p) => p.parentId === newParentId && !p.deleted && p.id !== draggedId)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const targetIdx = siblings.findIndex((p) => p.id === targetId);
+  const beforeIdx = zone === "before" ? targetIdx - 1 : targetIdx;
+  const afterIdx = zone === "before" ? targetIdx : targetIdx + 1;
+  const beforeOrder = siblings[beforeIdx]?.order ?? (target.order ?? 0) - 2;
+  const afterOrder = siblings[afterIdx]?.order ?? (target.order ?? 0) + 2;
+  const newOrder = (beforeOrder + afterOrder) / 2;
+
+  await updateDoc(doc(db, "users", currentUser.uid, "pages", draggedId), {
+    parentId: newParentId, order: newOrder, updatedAt: serverTimestamp()
+  });
+}
+
 function renderTree() {
   const roots = [...pagesById.values()]
     .filter((p) => !p.parentId && !p.deleted)
@@ -450,6 +503,39 @@ function buildNode(page) {
   const row = document.createElement("div");
   row.className = "page-node" + (page.id === currentPageId ? " selected" : "");
   row.dataset.id = page.id;
+  row.draggable = true;
+
+  row.addEventListener("dragstart", (e) => {
+    e.stopPropagation();
+    draggedPageId = page.id;
+    row.classList.add("dragging");
+  });
+  row.addEventListener("dragend", () => {
+    row.classList.remove("dragging");
+    clearTreeDropIndicators();
+  });
+  row.addEventListener("dragover", (e) => {
+    if (!draggedPageId || draggedPageId === page.id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = row.getBoundingClientRect();
+    const ratio = (e.clientY - rect.top) / rect.height;
+    const zone = ratio < 0.25 ? "before" : ratio > 0.75 ? "after" : "inside";
+    clearTreeDropIndicators();
+    row.classList.add("drop-" + zone);
+  });
+  row.addEventListener("dragleave", () => row.classList.remove("drop-before", "drop-inside", "drop-after"));
+  row.addEventListener("drop", async (e) => {
+    if (!draggedPageId || draggedPageId === page.id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = row.getBoundingClientRect();
+    const ratio = (e.clientY - rect.top) / rect.height;
+    const zone = ratio < 0.25 ? "before" : ratio > 0.75 ? "after" : "inside";
+    clearTreeDropIndicators();
+    await moveTreeNode(draggedPageId, page.id, zone);
+    draggedPageId = null;
+  });
 
   const caret = document.createElement("span");
   caret.className = "caret" + (children.length ? "" : " empty") + (expandedIds.has(page.id) ? " open" : "");
