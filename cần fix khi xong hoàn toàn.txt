@@ -1,7 +1,19 @@
-modal setting
-modal hướng dẫn
+modal setting .settings-card
+modal hướng dẫn .help-card
 viewStatusBar di chuyển sang bên phải
 sitebar: xóa thùng rác ở bottom, xóa đăng xuất , theme ở top
 
-bỏ max-width .today-view.wide-mode
+bỏ max-width .today-view.wide-mode 
+.today-view.wide-mode {
+    max-width: 100%;
+}
+
 today-calendar-chip
+
+title="Bỏ hạn" -> title="Bỏ thời hạn"
+
+@media (max-width: 820px) {
+    .page-view, .today-view {
+        padding: 30px 20px 0;
+    }
+}

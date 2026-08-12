@@ -2461,7 +2461,7 @@ button {
 /* ---------- RESPONSIVE ---------- */
 @media (max-width: 820px) {
   .page-view, .today-view {
-    padding: 70px 20px 100px;
+    padding: 30px 20px 0;
   }
 }
 @media (max-width: 768px) {
