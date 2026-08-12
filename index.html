@@ -235,7 +235,38 @@
           <span class="page-icon-btn today-icon"><img src="assets/imgs/sticky-note.png" width="40" alt="note"></span>
           <div class="page-title today-title">Việc cần làm hôm nay</div>
         </div>
+
+        <div class="today-view-tabs">
+          <button class="today-view-tab active" data-today-mode="list">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+            Danh sách
+          </button>
+          <button class="today-view-tab" data-today-mode="kanban">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="9.5" y="4" width="5" height="10" rx="1"/><rect x="16" y="4" width="5" height="13" rx="1"/></svg>
+            Kanban
+          </button>
+          <button class="today-view-tab" data-today-mode="calendar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+            Lịch
+          </button>
+        </div>
+
         <div id="todayGroups" class="today-groups"></div>
+        <div id="todayKanban" class="today-kanban hidden"></div>
+        <div id="todayCalendar" class="today-calendar hidden">
+          <div class="today-calendar-nav">
+            <button id="calPrevBtn" class="icon-btn" title="Tháng trước">‹</button>
+            <div id="calMonthLabel" class="today-calendar-month"></div>
+            <button id="calNextBtn" class="icon-btn" title="Tháng sau">›</button>
+            <input id="calJumpInput" type="month" class="today-calendar-jump" title="Chọn nhanh tháng/năm bất kỳ" />
+            <button id="calTodayBtn" class="btn today-calendar-today-btn">Hôm nay</button>
+          </div>
+          <div class="today-calendar-weekdays">
+            <span>CN</span><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span>
+          </div>
+          <div id="calGrid" class="today-calendar-grid"></div>
+        </div>
+
         <div id="todayEmpty" class="today-empty hidden">🎉 Không có việc nào đang chờ — mọi thứ đã xong!</div>
       </div>
 

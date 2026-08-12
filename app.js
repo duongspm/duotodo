@@ -108,6 +108,15 @@ const todayNavBtn = $("todayNavBtn");
 const todayView = $("todayView");
 const todayGroups = $("todayGroups");
 const todayEmpty = $("todayEmpty");
+const todayViewTabs = document.querySelectorAll(".today-view-tab");
+const todayKanban = $("todayKanban");
+const todayCalendar = $("todayCalendar");
+const calPrevBtn = $("calPrevBtn");
+const calNextBtn = $("calNextBtn");
+const calTodayBtn = $("calTodayBtn");
+const calJumpInput = $("calJumpInput");
+const calMonthLabel = $("calMonthLabel");
+const calGrid = $("calGrid");
 const sidebarSkeleton = $("sidebarSkeleton");
 const pageSkeleton = $("pageSkeleton");
 const toastMessage = $("toastMessage");
@@ -193,6 +202,9 @@ let activeSortMode = null; // null | 'dueDate' | 'alpha' | 'createdAt'
 let activeGroupMode = null; // null | 'type' | 'todoStatus' | 'dueDate'
 let latestBlocks = []; // cache của lần snapshot gần nhất, để sắp xếp/nhóm lại ngay không cần chờ Firestore
 let nodeActionsPendingPageId = null; // page mà menu "⋮" trong sidebar tree đang mở cho
+let todayViewMode = "list"; // 'list' | 'kanban' | 'calendar'
+let latestTodayItems = [];
+let calendarMonthOffset = 0; // 0 = tháng hiện tại
 let pendingImageBlockId = null;
 let pagesFirstLoadDone = false;
 let currentView = "empty"; // 'empty' | 'page' | 'today' | 'trash'
@@ -1883,14 +1895,21 @@ function subscribeToday() {
       const pageId = d.ref.parent.parent.id;
       items.push({ id: d.id, pageId, ...d.data() });
     });
-    renderTodayGroups(items);
+    latestTodayItems = items;
+    renderTodayView(items);
   }, (err) => {
     console.error(err);
     showToast("Lỗi tải danh sách việc cần làm");
   });
 }
 
-function renderTodayGroups(items) {
+const TODAY_SECTIONS = [
+  { key: "overdue", label: "⚠️ Quá hạn", cls: "overdue" },
+  { key: "today", label: "☀️ Hôm nay", cls: "today" },
+  { key: "upcoming", label: "📆 Sắp tới", cls: "" },
+  { key: "none", label: "◽ Không có hạn", cls: "" }
+];
+function groupTodayItemsByDueStatus(items) {
   const priorityRank = { high: 0, medium: 1, low: 2, undefined: 3, null: 3 };
   const groups = { overdue: [], today: [], upcoming: [], none: [] };
   items.forEach((it) => {
@@ -1900,19 +1919,32 @@ function renderTodayGroups(items) {
   Object.values(groups).forEach((arr) =>
     arr.sort((a, b) => (priorityRank[a.priority] - priorityRank[b.priority]) || (a.dueDate || "").localeCompare(b.dueDate || ""))
   );
+  return groups;
+}
 
-  const sections = [
-    { key: "overdue", label: "⚠️ Quá hạn", cls: "overdue" },
-    { key: "today", label: "☀️ Hôm nay", cls: "today" },
-    { key: "upcoming", label: "📆 Sắp tới", cls: "" },
-    { key: "none", label: "◽ Không có hạn", cls: "" }
-  ];
+function renderTodayView(items) {
+  todayEmpty.classList.toggle("hidden", items.length > 0);
+  todayGroups.classList.toggle("hidden", todayViewMode !== "list");
+  todayKanban.classList.toggle("hidden", todayViewMode !== "kanban");
+  todayCalendar.classList.toggle("hidden", todayViewMode !== "calendar");
+  if (todayViewMode === "kanban") renderTodayKanban(items);
+  else if (todayViewMode === "calendar") renderTodayCalendar(items);
+  else renderTodayGroups(items);
+}
 
+todayViewTabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    todayViewMode = tab.dataset.todayMode;
+    todayViewTabs.forEach((t) => t.classList.toggle("active", t === tab));
+    todayView.classList.toggle("wide-mode", todayViewMode !== "list");
+    renderTodayView(latestTodayItems);
+  });
+});
+
+function renderTodayGroups(items) {
+  const groups = groupTodayItemsByDueStatus(items);
   todayGroups.innerHTML = "";
-  const total = items.length;
-  todayEmpty.classList.toggle("hidden", total > 0);
-
-  sections.forEach(({ key, label, cls }) => {
+  TODAY_SECTIONS.forEach(({ key, label, cls }) => {
     const arr = groups[key];
     if (!arr.length) return;
     const section = document.createElement("div");
@@ -1924,6 +1956,123 @@ function renderTodayGroups(items) {
     todayGroups.appendChild(section);
   });
 }
+
+/* ---------------- Kanban ---------------- */
+function renderTodayKanban(items) {
+  const groups = groupTodayItemsByDueStatus(items);
+  todayKanban.innerHTML = "";
+  TODAY_SECTIONS.forEach(({ key, label, cls }) => {
+    const arr = groups[key];
+    const col = document.createElement("div");
+    col.className = "today-kanban-col";
+    const header = document.createElement("div");
+    header.className = "today-kanban-col-header " + cls;
+    header.innerHTML = `${label} <span class="today-kanban-col-count">${arr.length}</span>`;
+    const body = document.createElement("div");
+    body.className = "today-kanban-col-body";
+    if (!arr.length) {
+      body.innerHTML = '<div class="today-kanban-empty">Không có việc</div>';
+    } else {
+      arr.forEach((it) => body.appendChild(buildKanbanCard(it)));
+    }
+    col.append(header, body);
+    todayKanban.appendChild(col);
+  });
+}
+
+function buildKanbanCard(item) {
+  const page = pagesById.get(item.pageId);
+  const card = document.createElement("div");
+  card.className = "today-kanban-card";
+  const text = document.createElement("div");
+  text.className = "today-kanban-card-text";
+  text.textContent = item.content || "(không có nội dung)";
+  const meta = document.createElement("div");
+  meta.className = "today-kanban-card-meta";
+  const pageChip = document.createElement("span");
+  pageChip.className = "today-item-page";
+  pageChip.textContent = `${page?.icon || "📄"} ${page?.title || "Không rõ"}`;
+  meta.appendChild(pageChip);
+  if (item.priority) {
+    const dot = document.createElement("span");
+    dot.className = "priority-dot " + item.priority;
+    meta.appendChild(dot);
+  }
+  card.append(text, meta);
+  card.addEventListener("click", () => openDetailModal(item.pageId, item));
+  return card;
+}
+
+/* ---------------- Lịch tháng ---------------- */
+function renderTodayCalendar(items) {
+  const byDate = {};
+  items.forEach((it) => { if (it.dueDate) (byDate[it.dueDate] ||= []).push(it); });
+
+  const now = new Date();
+  const base = new Date(now.getFullYear(), now.getMonth() + calendarMonthOffset, 1);
+  const year = base.getFullYear();
+  const month = base.getMonth();
+  calMonthLabel.textContent = `Tháng ${month + 1}, ${year}`;
+  calJumpInput.value = `${year}-${String(month + 1).padStart(2, "0")}`;
+
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+  const todayStr = fmtDateStr(new Date());
+
+  calGrid.innerHTML = "";
+  const totalCells = Math.ceil((firstDayOfWeek + daysInMonth) / 7) * 7;
+  for (let i = 0; i < totalCells; i++) {
+    const dayNum = i - firstDayOfWeek + 1;
+    let cellDate, outside = false;
+    if (dayNum < 1) { cellDate = new Date(year, month - 1, daysInPrevMonth + dayNum); outside = true; }
+    else if (dayNum > daysInMonth) { cellDate = new Date(year, month + 1, dayNum - daysInMonth); outside = true; }
+    else { cellDate = new Date(year, month, dayNum); }
+
+    const dateStr = fmtDateStr(cellDate);
+    const cell = document.createElement("div");
+    cell.className = "today-calendar-cell" + (outside ? " outside" : "") + (dateStr === todayStr ? " is-today" : "") + ((byDate[dateStr]?.length) ? " has-items" : "");
+    const num = document.createElement("div");
+    num.className = "today-calendar-daynum";
+    num.textContent = cellDate.getDate();
+    cell.appendChild(num);
+
+    const dayItems = byDate[dateStr] || [];
+    dayItems.slice(0, 3).forEach((it) => {
+      const chip = document.createElement("div");
+      chip.className = "today-calendar-chip" + (dateStr < todayStr ? " overdue-chip" : "");
+      if (it.priority) {
+        const dot = document.createElement("span");
+        dot.className = "priority-dot " + it.priority;
+        chip.appendChild(dot);
+      }
+      chip.appendChild(document.createTextNode(it.content || "(không tên)"));
+      chip.title = it.content || "";
+      chip.addEventListener("click", (e) => { e.stopPropagation(); openDetailModal(it.pageId, it); });
+      cell.appendChild(chip);
+    });
+    if (dayItems.length > 3) {
+      const more = document.createElement("div");
+      more.className = "today-calendar-more";
+      more.textContent = `+${dayItems.length - 3} khác`;
+      cell.appendChild(more);
+    }
+    calGrid.appendChild(cell);
+  }
+}
+function fmtDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+calPrevBtn.addEventListener("click", () => { calendarMonthOffset--; renderTodayCalendar(latestTodayItems); });
+calNextBtn.addEventListener("click", () => { calendarMonthOffset++; renderTodayCalendar(latestTodayItems); });
+calTodayBtn.addEventListener("click", () => { calendarMonthOffset = 0; renderTodayCalendar(latestTodayItems); });
+calJumpInput.addEventListener("change", () => {
+  const [y, m] = calJumpInput.value.split("-").map(Number);
+  if (!y || !m) return;
+  const now = new Date();
+  calendarMonthOffset = (y - now.getFullYear()) * 12 + (m - 1 - now.getMonth());
+  renderTodayCalendar(latestTodayItems);
+});
 
 function buildTodayItem(item) {
   const row = document.createElement("div");

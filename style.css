@@ -2114,7 +2114,7 @@ button {
 
 /* ---------- TODAY VIEW ---------- */
 .today-view {
-  max-width: 760px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 60px 60px 120px;
 }
@@ -2128,6 +2128,134 @@ button {
   font-size: 32px;
   font-weight: 700;
   padding: 6px 4px;
+}
+.today-view.wide-mode{ max-width: 100%; }
+
+/* ---------- Tab chuyển chế độ xem (Danh sách / Kanban / Lịch) ---------- */
+.today-view-tabs{
+  display: flex; gap: 4px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+.today-view-tab{
+  display: flex; align-items: center; gap: 6px;
+  border: none; background: none;
+  color: var(--text-tertiary);
+  font-size: 13.5px; font-weight: 500;
+  padding: 9px 12px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.today-view-tab svg{ width: 15px; height: 15px; }
+.today-view-tab:hover{ color: var(--text-primary); }
+.today-view-tab.active{ color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
+/* ---------- Kanban ---------- */
+.today-kanban{
+  display: flex; gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+}
+.today-kanban-col{
+  flex: 0 0 260px;
+  display: flex; flex-direction: column;
+  background: var(--sidebar-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  max-height: 70vh;
+}
+.today-kanban-col-header{
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .03em;
+  color: var(--text-secondary);
+  padding: 12px 12px 8px;
+  flex-shrink: 0;
+}
+.today-kanban-col-header.overdue{ color: var(--danger); }
+.today-kanban-col-header.today{ color: var(--warning); }
+.today-kanban-col-count{
+  margin-left: auto;
+  background: var(--bg-elevated);
+  border-radius: 10px;
+  padding: 1px 7px;
+  font-size: 11px;
+}
+.today-kanban-col-body{
+  flex: 1; overflow-y: auto;
+  padding: 0 10px 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.today-kanban-card{
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 11px;
+  cursor: pointer;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.today-kanban-card:hover{ border-color: var(--accent); box-shadow: var(--shadow-sm); }
+.today-kanban-card-text{ font-size: 13.5px; color: var(--text-primary); margin-bottom: 6px; word-break: break-word; }
+.today-kanban-card-meta{ display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.today-kanban-empty{ font-size: 12.5px; color: var(--text-tertiary); padding: 6px 2px 14px; }
+
+/* ---------- Lịch tháng ---------- */
+.today-calendar-nav{
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.today-calendar-month{ font-size: 15px; font-weight: 700; min-width: 140px; text-align: center; }
+.today-calendar-today-btn{ margin-left: auto; font-size: 12.5px; padding: 6px 12px; }
+.today-calendar-jump{
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font-size: 12.5px;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+.today-calendar-jump:focus{ border-color: var(--accent); outline: none; box-shadow: var(--shadow-glow); }
+.today-calendar-weekdays{
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  font-size: 11.5px; font-weight: 700; color: var(--text-tertiary);
+  text-align: center; padding: 6px 0;
+}
+.today-calendar-grid{
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+.today-calendar-cell{
+  min-height: 90px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px;
+  display: flex; flex-direction: column; gap: 3px;
+  background: var(--bg);
+}
+.today-calendar-cell.outside{ opacity: .4; background: var(--sidebar-bg); }
+.today-calendar-cell.is-today{ border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.today-calendar-daynum{ font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.today-calendar-cell.is-today .today-calendar-daynum{ color: var(--accent); }
+.today-calendar-chip{
+  display: flex; align-items: center; gap: 4px;
+  font-size: 10.5px; font-weight: 500;
+  background: var(--bg-elevated);
+  border-radius: 5px;
+  padding: 2px 5px;
+  cursor: pointer;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  max-width: 190px;
+}
+.today-calendar-chip:hover{ background: var(--accent-soft); color: var(--accent); }
+.today-calendar-chip .priority-dot{ width: 6px; height: 6px; flex-shrink: 0; }
+.today-calendar-chip.overdue-chip{ color: var(--danger); }
+.today-calendar-more{ font-size: 10px; color: var(--text-tertiary); padding-left: 2px; }
+
+@media (max-width: 640px){
+  .today-calendar-cell{ min-height: 60px; padding: 4px; }
+  .today-calendar-chip{ display: none; }
+  .today-calendar-cell.has-items::after{ content:""; width:5px; height:5px; border-radius:50%; background:var(--accent); align-self:center; margin-top:2px; }
 }
 .today-groups {
   display: flex;
