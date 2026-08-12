@@ -906,13 +906,25 @@ function buildBlockEl(block, allBlocks) {
   row.addEventListener("dragend", () => {
     row.classList.remove("dragging");
     row.draggable = false;
+    clearBlockDropIndicators();
   });
-  row.addEventListener("dragover", (e) => { if (!reorderDisabled) e.preventDefault(); });
+  row.addEventListener("dragover", (e) => {
+    if (reorderDisabled || !draggedBlockId || draggedBlockId === block.id) return;
+    e.preventDefault();
+    const rect = row.getBoundingClientRect();
+    const zone = (e.clientY - rect.top) / rect.height < 0.5 ? "before" : "after";
+    clearBlockDropIndicators();
+    row.classList.add("drop-" + zone);
+  });
+  row.addEventListener("dragleave", () => row.classList.remove("drop-before", "drop-after"));
   row.addEventListener("drop", (e) => {
     if (reorderDisabled) return;
     e.preventDefault();
     if (!draggedBlockId || draggedBlockId === block.id) return;
-    reorderBlocks(draggedBlockId, block.id, allBlocks);
+    const rect = row.getBoundingClientRect();
+    const zone = (e.clientY - rect.top) / rect.height < 0.5 ? "before" : "after";
+    clearBlockDropIndicators();
+    reorderBlocks(draggedBlockId, block.id, allBlocks, zone);
   });
 
   const idx = allBlocks.findIndex((b) => b.id === block.id);
@@ -1814,12 +1826,20 @@ async function permanentlyDeleteBlock(pageId, block) {
   await deleteDoc(blockRef(pageId, block.id));
 }
 
-async function reorderBlocks(draggedId, targetId, allBlocks) {
+function clearBlockDropIndicators() {
+  document.querySelectorAll(".block.drop-before, .block.drop-after")
+    .forEach((el) => el.classList.remove("drop-before", "drop-after"));
+}
+
+async function reorderBlocks(draggedId, targetId, allBlocks, zone = "before") {
   const ids = allBlocks.map((b) => b.id);
   const fromIdx = ids.indexOf(draggedId);
-  const toIdx = ids.indexOf(targetId);
+  let toIdx = ids.indexOf(targetId);
   if (fromIdx === -1 || toIdx === -1) return;
-  ids.splice(toIdx, 0, ids.splice(fromIdx, 1)[0]);
+  if (zone === "after") toIdx += 1;
+  const [moved] = ids.splice(fromIdx, 1);
+  if (fromIdx < toIdx) toIdx -= 1; // bù lại vì vừa xóa 1 phần tử phía trước vị trí chèn
+  ids.splice(toIdx, 0, moved);
 
   const batch = writeBatch(db);
   ids.forEach((id, idx) => {
