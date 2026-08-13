@@ -719,7 +719,21 @@
           <input id="settingsNewPasswordInput" type="password" placeholder="Mật khẩu phụ (tối thiểu 6 ký tự)" class="settings-password-input" />
           <button id="settingsSetPasswordBtn" class="btn btn-primary">Đặt mật khẩu phụ</button>
         </div>
-        <p id="settingsPasswordDone" class="settings-desc hidden">✅ Đã thiết lập — dùng email <strong id="settingsEmailInline"></strong> + mật khẩu phụ để đăng nhập trên máy khác.</p>
+
+        <div id="settingsPasswordDone" class="hidden">
+          <p class="settings-desc">✅ Đã thiết lập — dùng email <strong id="settingsEmailInline"></strong> + mật khẩu phụ để đăng nhập trên máy khác.</p>
+          <div class="settings-password-linked-actions">
+            <button id="settingsShowChangeBtn" class="btn">Đổi mật khẩu phụ</button>
+            <button id="settingsRemovePasswordBtn" class="btn btn-danger">Xóa mật khẩu phụ</button>
+          </div>
+          <div id="settingsChangePasswordForm" class="hidden settings-change-password-form">
+            <input id="settingsChangePasswordInput" type="password" placeholder="Mật khẩu phụ mới (tối thiểu 6 ký tự)" class="settings-password-input" />
+            <div class="settings-change-password-actions">
+              <button id="settingsSaveChangeBtn" class="btn btn-primary">Lưu mật khẩu mới</button>
+              <button id="settingsCancelChangeBtn" class="btn">Hủy</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="settings-section">

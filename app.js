@@ -2,7 +2,8 @@ import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
-  EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, sendPasswordResetEmail
+  EmailAuthProvider, linkWithCredential, signInWithEmailAndPassword, sendPasswordResetEmail,
+  updatePassword, unlink, reauthenticateWithPopup
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore, collection, collectionGroup, doc, addDoc, updateDoc, deleteDoc, onSnapshot,
@@ -187,6 +188,12 @@ const settingsPasswordForm = $("settingsPasswordForm");
 const settingsPasswordDone = $("settingsPasswordDone");
 const settingsNewPasswordInput = $("settingsNewPasswordInput");
 const settingsSetPasswordBtn = $("settingsSetPasswordBtn");
+const settingsShowChangeBtn = $("settingsShowChangeBtn");
+const settingsRemovePasswordBtn = $("settingsRemovePasswordBtn");
+const settingsChangePasswordForm = $("settingsChangePasswordForm");
+const settingsChangePasswordInput = $("settingsChangePasswordInput");
+const settingsSaveChangeBtn = $("settingsSaveChangeBtn");
+const settingsCancelChangeBtn = $("settingsCancelChangeBtn");
 
 /* ---------------- State ---------------- */
 let currentUser = null;
@@ -2432,6 +2439,27 @@ function openSettingsModal() {
   settingsModal.classList.remove("hidden");
   settingsEmailInline.textContent = currentUser?.email || "";
 }
+/* Firebase yêu cầu đăng nhập "gần đây" cho các thao tác nhạy cảm (đổi/xóa mật khẩu).
+   Nếu gặp lỗi đó, tự mở popup đăng nhập lại bằng Google (đang là tài khoản chính) rồi thử lại 1 lần. */
+async function withFreshLogin(action) {
+  try {
+    await action();
+  } catch (err) {
+    if (err.code === "auth/requires-recent-login") {
+      try {
+        await reauthenticateWithPopup(currentUser, provider);
+        await action();
+      } catch (err2) {
+        console.error(err2);
+        showToast("Lỗi xác thực lại: " + err2.message);
+      }
+    } else {
+      console.error(err);
+      showToast("Lỗi: " + err.message);
+    }
+  }
+}
+
 settingsSetPasswordBtn.addEventListener("click", async () => {
   const password = settingsNewPasswordInput.value;
   if (!password || password.length < 6) return showToast("Mật khẩu cần ít nhất 6 ký tự");
@@ -2446,6 +2474,37 @@ settingsSetPasswordBtn.addEventListener("click", async () => {
     console.error(err);
     showToast("Lỗi: " + err.message);
   }
+});
+
+settingsShowChangeBtn.addEventListener("click", () => {
+  settingsChangePasswordForm.classList.remove("hidden");
+  settingsChangePasswordInput.value = "";
+  settingsChangePasswordInput.focus();
+});
+settingsCancelChangeBtn.addEventListener("click", () => {
+  settingsChangePasswordForm.classList.add("hidden");
+});
+settingsSaveChangeBtn.addEventListener("click", async () => {
+  const password = settingsChangePasswordInput.value;
+  if (!password || password.length < 6) return showToast("Mật khẩu cần ít nhất 6 ký tự");
+  await withFreshLogin(async () => {
+    await updatePassword(currentUser, password);
+    settingsChangePasswordInput.value = "";
+    settingsChangePasswordForm.classList.add("hidden");
+    showToast("Đã đổi mật khẩu phụ");
+  });
+});
+
+settingsRemovePasswordBtn.addEventListener("click", async () => {
+  const ok = await showConfirm("Xóa mật khẩu phụ?", "Bạn sẽ không còn đăng nhập được bằng Email + mật khẩu trên máy lạ nữa, chỉ còn đăng nhập Google.", { danger: true, confirmText: "Xóa" });
+  if (!ok) return;
+  await withFreshLogin(async () => {
+    await unlink(currentUser, "password");
+    settingsPasswordDone.classList.add("hidden");
+    settingsChangePasswordForm.classList.add("hidden");
+    settingsPasswordForm.classList.remove("hidden");
+    showToast("Đã xóa mật khẩu phụ");
+  });
 });
 function closeSettingsModal() {
   settingsModal.classList.add("hidden");
