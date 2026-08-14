@@ -3043,6 +3043,18 @@ nodeActionsMenu.querySelectorAll("[data-node-action]").forEach((btn) => {
   });
 });
 
+/* ---------------- Hiện/ẩn mật khẩu đang gõ ---------------- */
+document.querySelectorAll(".settings-password-eye-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const input = $(btn.dataset.eyeFor);
+    if (!input) return;
+    const showing = input.type === "text";
+    input.type = showing ? "password" : "text";
+    btn.querySelector(".eye-open").classList.toggle("hidden", !showing);
+    btn.querySelector(".eye-closed").classList.toggle("hidden", showing);
+  });
+});
+
 /* ---------------- Sidebar toggle (mobile) ---------------- */
 sidebarToggle.addEventListener("click", () => 
 {
