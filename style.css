@@ -1807,35 +1807,6 @@ button {
   .help-card{ padding: 20px; }
 }
 
-/* ---------- TOAST ---------- */
-
-/* ---------- TOAST ---------- */
-.toast{
-  position:fixed;
-  bottom:20px;left:50%;
-  transform:translateX(-50%);
-  background:var(--text-primary);
-  color:#fff;
-  padding:10px 12px 10px 16px;
-  border-radius:var(--radius);
-  font-size:13.5px;
-  z-index:100;
-  box-shadow:0 4px 16px rgba(0,0,0,.15);
-  display:flex;align-items:center;gap:12px;
-  max-width:90vw;
-}
-.toast-message{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.toast-action{
-  border:none;
-  background:rgba(255,255,255,.14);
-  color:#fff;
-  font-weight:600;
-  font-size:13px;
-  padding:5px 10px;
-  border-radius:4px;
-  flex-shrink:0;
-}
-.toast-action:hover{background:rgba(255,255,255,.24);}
 #confirmModal .modal-card{
   max-width: 520px;
   z-index: 210;

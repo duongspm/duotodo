@@ -1169,6 +1169,7 @@ function buildTodo(block, pageIdOverride) {
     const idx = PRIORITY_ORDER.indexOf(currentPriority);
     const next = PRIORITY_ORDER[(idx + 1) % PRIORITY_ORDER.length];
     updateDoc(blockRef(pageId, block.id), { priority: next });
+    showToast("Thay đổi độ ưu tiên thành công !");
   });
   meta.appendChild(flagBtn);
 
