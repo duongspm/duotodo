@@ -2083,23 +2083,30 @@ function renderTodayCalendar(items) {
     cell.appendChild(num);
 
     const dayItems = byDate[dateStr] || [];
-    dayItems.slice(0, 3).forEach((it) => {
-      const chip = document.createElement("div");
-      chip.className = "today-calendar-chip" + (dateStr < todayStr ? " overdue-chip" : "");
-      if (it.priority) {
-        const dot = document.createElement("span");
-        dot.className = "priority-dot " + it.priority;
-        chip.appendChild(dot);
-      }
-      chip.appendChild(document.createTextNode(it.content || "(không tên)"));
-      chip.title = it.content || "";
-      chip.addEventListener("click", (e) => { e.stopPropagation(); openDetailModal(it.pageId, it); });
-      cell.appendChild(chip);
-    });
+    if (dayItems.length) {
+      const itemsWrap = document.createElement("div");
+      itemsWrap.className = "today-calendar-cell-items";
+      dayItems.forEach((it) => {
+        const chip = document.createElement("div");
+        const chipDateClass = dateStr < todayStr ? " overdue-chip" : dateStr === todayStr ? " today" : "";
+        chip.className = "today-calendar-chip" + chipDateClass;
+        if (it.priority) {
+          const dot = document.createElement("span");
+          dot.className = "priority-dot " + it.priority;
+          chip.appendChild(dot);
+        }
+        chip.appendChild(document.createTextNode(it.content || "(không tên)"));
+        chip.title = it.content || "";
+        chip.addEventListener("click", (e) => { e.stopPropagation(); openDetailModal(it.pageId, it); });
+        itemsWrap.appendChild(chip);
+      });
+      cell.appendChild(itemsWrap);
+    }
+
     if (dayItems.length > 3) {
       const more = document.createElement("div");
       more.className = "today-calendar-more";
-      more.textContent = `+${dayItems.length - 3} khác`;
+      more.textContent = `+${dayItems.length - 3} khác (scroll xuống ↓)`;
       cell.appendChild(more);
     }
     calGrid.appendChild(cell);

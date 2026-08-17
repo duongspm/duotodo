@@ -236,6 +236,21 @@
           <div class="page-title today-title">Việc cần làm hôm nay</div>
         </div>
 
+        <div class="today-priority-legend">
+          <div class="today-priority-legend --list">
+            <span>Độ ưu tiên: </span>
+            <span class="today-priority-legend-item"><span class="priority-dot high"></span> Cao</span>
+            <span class="today-priority-legend-item"><span class="priority-dot medium"></span> Trung bình</span>
+            <span class="today-priority-legend-item"><span class="priority-dot low"></span> Thấp</span>
+          </div>
+          <div class="today-priority-legend --list">
+            <span>Thời hạn: </span>
+            <span style="color: var(--danger);"> Hết hạn</span>
+            <span style="color: var(--warning);"> Hôm nay</span>
+            <span> Sắp tới</span>
+          </div>
+        </div>
+
         <div class="today-view-tabs">
           <button class="today-view-tab active" data-today-mode="list">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
@@ -255,16 +270,22 @@
         <div id="todayKanban" class="today-kanban hidden"></div>
         <div id="todayCalendar" class="today-calendar hidden">
           <div class="today-calendar-nav">
-            <button id="calPrevBtn" class="icon-btn" title="Tháng trước">‹</button>
-            <div id="calMonthLabel" class="today-calendar-month"></div>
-            <button id="calNextBtn" class="icon-btn" title="Tháng sau">›</button>
-            <input id="calJumpInput" type="month" class="today-calendar-jump" title="Chọn nhanh tháng/năm bất kỳ" />
-            <button id="calTodayBtn" class="btn today-calendar-today-btn">Hôm nay</button>
+            <div>
+              <button id="calPrevBtn" class="icon-btn" title="Tháng trước">‹</button>
+              <div id="calMonthLabel" class="today-calendar-month"></div>
+              <button id="calNextBtn" class="icon-btn" title="Tháng sau">›</button>
+            </div>
+            <div>
+              <input id="calJumpInput" type="month" class="today-calendar-jump" title="Chọn nhanh tháng/năm bất kỳ" />
+              <button id="calTodayBtn" class="btn today-calendar-today-btn">Hôm nay</button>
+            </div>
           </div>
-          <div class="today-calendar-weekdays">
-            <span>CN</span><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span>
+          <div class="todayCalendar-list">
+            <div class="today-calendar-weekdays">
+              <span>CN</span><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span>
+            </div>
+            <div id="calGrid" class="today-calendar-grid"></div>
           </div>
-          <div id="calGrid" class="today-calendar-grid"></div>
         </div>
 
         <div id="todayEmpty" class="today-empty hidden">🎉 Không có việc nào đang chờ — mọi thứ đã xong!</div>
