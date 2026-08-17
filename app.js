@@ -140,6 +140,7 @@ const detailFolderInput = $("detailFolderInput");
 const detailFilesWrap = $("detailFilesWrap");
 const detailAddFilesBtn = $("detailAddFilesBtn");
 const detailAddFolderBtn = $("detailAddFolderBtn");
+const detailDownloadAllBtn = $("detailDownloadAllBtn");
 const detailEditDescBtn = $("detailEditDescBtn");
 const detailDescActions = $("detailDescActions");
 const detailCancelDescBtn = $("detailCancelDescBtn");
@@ -884,7 +885,8 @@ const ICONS = {
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
   expand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 3h6v6M9 21H3v-6M15 21h6v-6"/></svg>',
   grip: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.4"/><circle cx="15" cy="6" r="1.4"/><circle cx="9" cy="12" r="1.4"/><circle cx="15" cy="12" r="1.4"/><circle cx="9" cy="18" r="1.4"/><circle cx="15" cy="18" r="1.4"/></svg>',
-  file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'
+  file: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+  download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>'
 };
 function iconEl(name, className) {
   const span = document.createElement("span");
@@ -1455,6 +1457,28 @@ function formatFileSize(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+/* Tải file thật (ép download) thay vì chỉ mở xem trong tab mới - cần fetch thành blob vì
+   link Vercel Blob khác domain, thuộc tính "download" của thẻ <a> không tự hoạt động qua origin khác. */
+async function downloadFile(url, name) {
+  try {
+    showToast(`Đang tải "${name}"...`);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = name || "tệp-tải-về";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  } catch (err) {
+    console.error(err);
+    showToast("Lỗi tải xuống: " + err.message);
+  }
+}
+
 async function uploadRawFileToBlob(file) {
   const filename = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "")}`;
   const res = await fetch(`/api/upload?filename=${encodeURIComponent(filename)}`, {
@@ -1471,6 +1495,7 @@ async function uploadRawFileToBlob(file) {
 
 function renderDetailFiles(files) {
   detailFilesWrap.innerHTML = "";
+  detailDownloadAllBtn.classList.toggle("hidden", files.length === 0);
   files.forEach((f) => {
     const row = document.createElement("div");
     row.className = "detail-file-item";
@@ -1487,6 +1512,11 @@ function renderDetailFiles(files) {
     size.className = "detail-file-size";
     size.textContent = formatFileSize(f.size || 0);
     info.append(a, size);
+    const downloadBtn = document.createElement("button");
+    downloadBtn.className = "detail-file-download";
+    downloadBtn.title = "Tải xuống";
+    downloadBtn.innerHTML = ICONS.download;
+    downloadBtn.addEventListener("click", () => downloadFile(f.url, f.name));
     const removeBtn = document.createElement("button");
     removeBtn.className = "detail-file-remove";
     removeBtn.title = "Xóa tệp";
@@ -1500,7 +1530,7 @@ function renderDetailFiles(files) {
       await updateDoc(blockRef(detailContext.pageId, detailContext.blockId), { descFiles: next });
       renderDetailFiles(next);
     });
-    row.append(icon, info, removeBtn);
+    row.append(icon, info, downloadBtn, removeBtn);
     detailFilesWrap.appendChild(row);
   });
 }
@@ -1536,6 +1566,14 @@ async function handleFilesSelected(fileList) {
 
 detailAddFilesBtn.addEventListener("click", () => detailFilesInput.click());
 detailAddFolderBtn.addEventListener("click", () => detailFolderInput.click());
+detailDownloadAllBtn.addEventListener("click", async () => {
+  if (!detailContext) return;
+  const snap = await getDocs(blocksCol(detailContext.pageId));
+  const current = snap.docs.find((d) => d.id === detailContext.blockId)?.data() || {};
+  const files = current.descFiles || [];
+  if (!files.length) return showToast("Chưa có tệp nào để tải");
+  files.forEach((f, i) => setTimeout(() => downloadFile(f.url, f.name), i * 500));
+});
 detailFilesInput.addEventListener("change", () => {
   handleFilesSelected([...detailFilesInput.files]);
   detailFilesInput.value = "";
