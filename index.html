@@ -492,7 +492,7 @@
       </div>
 
       <div id="movePagePicker" class="page-action-menu hidden">
-        <div class="page-action-menu-title">Di chuyển đến trang</div>
+        <div class="page-action-menu-title"><button id="btnBackdetailMenu" class="icon-btn" title="Quay lại"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left-icon lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg></button> <span>Di chuyển đến trang</span></div>
         <input id="movePageSearch" type="text" class="move-page-search" placeholder="Tìm trang..." autocomplete="off" />
         <div id="movePageList" class="move-page-list"></div>
       </div>
@@ -751,70 +751,71 @@
     <div class="modal-card settings-card">
       <button id="settingsCloseBtn" class="icon-btn detail-close-btn" title="Đóng">✕</button>
       <h2 class="help-title">Cài đặt</h2>
-
-      <div class="settings-section">
-        <div class="settings-label">Tài khoản</div>
-        <div class="settings-account-row">
-          <img id="settingsAvatar" class="user-avatar settings-avatar" alt="">
-          <div>
-            <div id="settingsName" class="settings-account-name"></div>
-            <div id="settingsEmail" class="settings-account-email"></div>
+      <div class="detail-inner">
+        <div class="settings-section">
+          <div class="settings-label">Tài khoản</div>
+          <div class="settings-account-row">
+            <img id="settingsAvatar" class="user-avatar settings-avatar" alt="">
+            <div>
+              <div id="settingsName" class="settings-account-name"></div>
+              <div id="settingsEmail" class="settings-account-email"></div>
+            </div>
           </div>
+          <button id="settingsLogoutBtn" class="btn">Đăng xuất</button>
         </div>
-        <button id="settingsLogoutBtn" class="btn">Đăng xuất</button>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-label">Giao diện</div>
-        <div class="settings-row">
-          <span>Chế độ sáng / tối</span>
-          <button id="themeToggleSettingsBtn" class="icon-btn settings-theme-btn" title="Đổi giao diện sáng/tối">
-            <span class="theme-icon theme-icon-sun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg></span>
-            <span class="theme-icon theme-icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></span>
-          </button>
-        </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-label">Bảo mật</div>
-        <p class="settings-desc">Đặt mật khẩu phụ để đăng nhập bằng Email trên máy lạ, không cần mở popup Google (tránh lưu phiên Google trên thiết bị đó).</p>
-        <div id="settingsPasswordForm">
-          <div class="settings-password-field">
-            <input id="settingsNewPasswordInput" type="password" placeholder="Mật khẩu phụ (tối thiểu 6 ký tự)" class="settings-password-input" />
-            <button type="button" class="settings-password-eye-btn" data-eye-for="settingsNewPasswordInput" title="Hiện/ẩn mật khẩu">
-              <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg class="eye-closed hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.2 4.2M9.9 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a13.5 13.5 0 0 1-3.1 3.9M6.2 6.2C3.7 7.9 2 12 2 12a13.5 13.5 0 0 0 5 5.8"/></svg>
+  
+        <div class="settings-section">
+          <div class="settings-label">Giao diện</div>
+          <div class="settings-row">
+            <span>Chế độ sáng / tối</span>
+            <button id="themeToggleSettingsBtn" class="icon-btn settings-theme-btn" title="Đổi giao diện sáng/tối">
+              <span class="theme-icon theme-icon-sun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2.5M12 19v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2.5 12H5M19 12h2.5M4.2 19.8L6 18M18 6l1.8-1.8"/></svg></span>
+              <span class="theme-icon theme-icon-moon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></span>
             </button>
           </div>
-          <button id="settingsSetPasswordBtn" class="btn btn-primary">Đặt mật khẩu phụ</button>
         </div>
-
-        <div id="settingsPasswordDone" class="hidden">
-          <p class="settings-desc">✅ Đã thiết lập — dùng email <strong id="settingsEmailInline"></strong> + mật khẩu phụ để đăng nhập trên máy khác.</p>
-          <div class="settings-password-linked-actions">
-            <button id="settingsShowChangeBtn" class="btn">Đổi mật khẩu phụ</button>
-            <button id="settingsRemovePasswordBtn" class="btn btn-danger">Xóa mật khẩu phụ</button>
-          </div>
-          <div id="settingsChangePasswordForm" class="hidden settings-change-password-form">
+  
+        <div class="settings-section">
+          <div class="settings-label">Bảo mật</div>
+          <p class="settings-desc">Đặt mật khẩu phụ để đăng nhập bằng Email trên máy lạ, không cần mở popup Google (tránh lưu phiên Google trên thiết bị đó).</p>
+          <div id="settingsPasswordForm">
             <div class="settings-password-field">
-              <input id="settingsChangePasswordInput" type="password" placeholder="Mật khẩu phụ mới (tối thiểu 6 ký tự)" class="settings-password-input" />
-              <button type="button" class="settings-password-eye-btn" data-eye-for="settingsChangePasswordInput" title="Hiện/ẩn mật khẩu">
+              <input id="settingsNewPasswordInput" type="password" placeholder="Mật khẩu phụ (tối thiểu 6 ký tự)" class="settings-password-input" />
+              <button type="button" class="settings-password-eye-btn" data-eye-for="settingsNewPasswordInput" title="Hiện/ẩn mật khẩu">
                 <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
                 <svg class="eye-closed hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.2 4.2M9.9 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a13.5 13.5 0 0 1-3.1 3.9M6.2 6.2C3.7 7.9 2 12 2 12a13.5 13.5 0 0 0 5 5.8"/></svg>
               </button>
             </div>
-            <div class="settings-change-password-actions">
-              <button id="settingsSaveChangeBtn" class="btn btn-primary">Lưu mật khẩu mới</button>
-              <button id="settingsCancelChangeBtn" class="btn">Hủy</button>
+            <button id="settingsSetPasswordBtn" class="btn btn-primary">Đặt mật khẩu phụ</button>
+          </div>
+  
+          <div id="settingsPasswordDone" class="hidden">
+            <p class="settings-desc">✅ Đã thiết lập — dùng email <strong id="settingsEmailInline"></strong> + mật khẩu phụ để đăng nhập trên máy khác.</p>
+            <div class="settings-password-linked-actions">
+              <button id="settingsShowChangeBtn" class="btn">Đổi mật khẩu phụ</button>
+              <button id="settingsRemovePasswordBtn" class="btn btn-danger">Xóa mật khẩu phụ</button>
+            </div>
+            <div id="settingsChangePasswordForm" class="hidden settings-change-password-form">
+              <div class="settings-password-field">
+                <input id="settingsChangePasswordInput" type="password" placeholder="Mật khẩu phụ mới (tối thiểu 6 ký tự)" class="settings-password-input" />
+                <button type="button" class="settings-password-eye-btn" data-eye-for="settingsChangePasswordInput" title="Hiện/ẩn mật khẩu">
+                  <svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-closed hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M10.6 10.6a3 3 0 0 0 4.2 4.2M9.9 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a13.5 13.5 0 0 1-3.1 3.9M6.2 6.2C3.7 7.9 2 12 2 12a13.5 13.5 0 0 0 5 5.8"/></svg>
+                </button>
+              </div>
+              <div class="settings-change-password-actions">
+                <button id="settingsSaveChangeBtn" class="btn btn-primary">Lưu mật khẩu mới</button>
+                <button id="settingsCancelChangeBtn" class="btn">Hủy</button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-
-      <div class="settings-section">
-        <div class="settings-label">Dữ liệu &amp; lưu trữ</div>
-        <p class="settings-desc">Trang và khối đã xóa được lưu trong Thùng rác <strong>30 ngày</strong> trước khi bị xóa vĩnh viễn.</p>
-        <button id="settingsOpenTrashBtn" class="btn">🗑 Mở thùng rác</button>
+  
+        <div class="settings-section">
+          <div class="settings-label">Dữ liệu &amp; lưu trữ</div>
+          <p class="settings-desc">Trang và khối đã xóa được lưu trong Thùng rác <strong>30 ngày</strong> trước khi bị xóa vĩnh viễn.</p>
+          <button id="settingsOpenTrashBtn" class="btn">🗑 Mở thùng rác</button>
+        </div>
       </div>
     </div>
   </div>

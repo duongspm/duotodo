@@ -1178,6 +1178,11 @@ button {
 .page-menu-item-danger:hover{ background: rgba(239,68,68,.12); }
 .page-menu-item .chip-icon{ width: 15px; height: 15px; color: inherit; }
 
+#movePagePicker .page-action-menu-title{
+  display: flex;
+  align-items: center;
+  gap: 1em;
+}
 /* ---------- Sắp xếp / Nhóm (page-header) ---------- */
 .page-header-actions{
   display: flex; align-items: center; gap: 6px;
@@ -1962,7 +1967,6 @@ button {
   background:var(--sidebar-bg);
 }
 .detail-toolbar button{
-  width:28px;height:28px;
   border:none;background:none;
   border-radius:4px;
   font-size:13px;

@@ -1280,14 +1280,23 @@ detailDuplicateBtn.addEventListener("click", async () => {
 
 /* ---- Di chuyển đến trang khác ---- */
 detailMoveBtn.addEventListener("click", () => {
+  // Đo toạ độ TRƯỚC khi ẩn menu cha - đo theo nút "⋮" gốc (luôn hiển thị ổn định),
+  // không đo theo detailMoveBtn vì nút đó sắp bị ẩn cùng menu cha, đo lúc đã ẩn sẽ ra tọa độ (0,0)
+  positionFixedMenu(movePagePicker, detailMenuBtn);
   detailMenu.classList.add("hidden");
   movePageSearch.value = "";
   renderMovePageList("");
-  positionFixedMenu(movePagePicker, detailMoveBtn);
   movePagePicker.classList.remove("hidden");
   movePageSearch.focus();
 });
 movePageSearch.addEventListener("input", () => renderMovePageList(movePageSearch.value.trim().toLowerCase()));
+
+const btnBackdetailMenu = $("btnBackdetailMenu");
+btnBackdetailMenu.addEventListener("click", (e) => {
+  e.stopPropagation();
+  detailMenu.classList.toggle("hidden");
+  movePagePicker.classList.add("hidden");
+});
 
 function renderMovePageList(filterText) {
   if (!detailContext) return;
