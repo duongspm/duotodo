@@ -455,8 +455,47 @@
 <!-- Trello-style task detail modal -->
   <div id="detailModal" class="modal-overlay hidden">
     <div class="modal-card detail-card">
-      <button id="detailCloseBtn" class="icon-btn detail-close-btn" title="Đóng">✕</button>
+      <div class="detail-modal-header">
+        <button id="detailMenuBtn" class="icon-btn" title="Thêm tùy chọn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+        </button>
+        <button id="detailCloseBtn" class="icon-btn" title="Đóng">✕</button>
+      </div>
 
+      <div id="detailMenu" class="page-menu hidden">
+        <button id="detailDuplicateBtn" class="page-menu-item" type="button">
+          <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg></span>
+          Sao chép
+        </button>
+        <button id="detailMoveBtn" class="page-menu-item" type="button">
+          <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          Di chuyển đến trang khác
+        </button>
+        <div class="page-menu-divider"></div>
+        <button class="page-menu-item" type="button" disabled>
+          <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.8M8.6 13.4l6.8 3.8"/></svg></span>
+          Chia sẻ <span class="page-menu-soon">Sắp có</span>
+        </button>
+        <button class="page-menu-item" type="button" disabled>
+          <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>
+          Theo dõi <span class="page-menu-soon">Sắp có</span>
+        </button>
+        <button class="page-menu-item" type="button" disabled>
+          <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></span>
+          Tạo mẫu <span class="page-menu-soon">Sắp có</span>
+        </button>
+        <div class="page-menu-divider"></div>
+        <button id="detailDeleteBtn" class="page-menu-item page-menu-item-danger" type="button">
+          <span class="chip-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span>
+          Xóa thẻ
+        </button>
+      </div>
+
+      <div id="movePagePicker" class="page-action-menu hidden">
+        <div class="page-action-menu-title">Di chuyển đến trang</div>
+        <input id="movePageSearch" type="text" class="move-page-search" placeholder="Tìm trang..." autocomplete="off" />
+        <div id="movePageList" class="move-page-list"></div>
+      </div>
       <div class="detail-title-row detail-title-header">
         <input id="detailCheckbox" type="checkbox" />
         <div id="detailTitle" class="detail-title" contenteditable="true" data-placeholder="Tên việc cần làm..."></div>
@@ -524,7 +563,6 @@
         </div>
   
       </div>
-      <button id="detailDeleteBtn" class="btn btn-danger detail-delete-btn">🗑 Xóa thẻ này</button>
     </div>
   </div>
 

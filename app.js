@@ -1226,9 +1226,114 @@ function openDetailModal(pageId, block) {
 }
 function closeDetailModal() {
   detailModal.classList.add("hidden");
+  detailMenu.classList.add("hidden");
+  movePagePicker.classList.add("hidden");
   detailContext = null;
 }
 detailCloseBtn.addEventListener("click", closeDetailModal);
+
+const detailMenuBtn = $("detailMenuBtn");
+const detailMenu = $("detailMenu");
+const detailDuplicateBtn = $("detailDuplicateBtn");
+const detailMoveBtn = $("detailMoveBtn");
+const movePagePicker = $("movePagePicker");
+const movePageSearch = $("movePageSearch");
+const movePageList = $("movePageList");
+detailMenuBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const willOpen = detailMenu.classList.contains("hidden");
+  if (willOpen) positionFixedMenu(detailMenu, detailMenuBtn);
+  detailMenu.classList.toggle("hidden", !willOpen);
+});
+document.addEventListener("click", (e) => {
+  if (!detailMenu.classList.contains("hidden") && !detailMenu.contains(e.target) && !detailMenuBtn.contains(e.target)) {
+    detailMenu.classList.add("hidden");
+  }
+  if (!movePagePicker.classList.contains("hidden") && !movePagePicker.contains(e.target) && !detailMoveBtn.contains(e.target)) {
+    movePagePicker.classList.add("hidden");
+  }
+});
+
+/* ---- Sao chép thẻ ---- */
+detailDuplicateBtn.addEventListener("click", async () => {
+  detailMenu.classList.add("hidden");
+  if (!detailContext) return;
+  const { pageId, blockId } = detailContext;
+  const snap = await getDocs(blocksCol(pageId));
+  const blockDoc = snap.docs.find((d) => d.id === blockId);
+  if (!blockDoc) return;
+  const block = blockDoc.data();
+  const { order, createdAt, ...rest } = block;
+  await addDoc(blocksCol(pageId), {
+    ...rest,
+    order: (block.order ?? 0) + 0.5, // chèn ngay sau bản gốc
+    createdAt: serverTimestamp()
+  });
+  if (block.type === "todo") {
+    await updateDoc(doc(db, "users", currentUser.uid, "pages", pageId), {
+      todoTotalCount: increment(1), todoOpenCount: increment(block.checked ? 0 : 1)
+    });
+  }
+  showToast("Đã sao chép thẻ");
+  closeDetailModal();
+});
+
+/* ---- Di chuyển đến trang khác ---- */
+detailMoveBtn.addEventListener("click", () => {
+  detailMenu.classList.add("hidden");
+  movePageSearch.value = "";
+  renderMovePageList("");
+  positionFixedMenu(movePagePicker, detailMoveBtn);
+  movePagePicker.classList.remove("hidden");
+  movePageSearch.focus();
+});
+movePageSearch.addEventListener("input", () => renderMovePageList(movePageSearch.value.trim().toLowerCase()));
+
+function renderMovePageList(filterText) {
+  if (!detailContext) return;
+  const pages = [...pagesById.values()]
+    .filter((p) => !p.deleted && p.id !== detailContext.pageId)
+    .filter((p) => !filterText || (p.title || "").toLowerCase().includes(filterText))
+    .sort((a, b) => (a.title || "").localeCompare(b.title || "", "vi"));
+  movePageList.innerHTML = "";
+  if (!pages.length) {
+    movePageList.innerHTML = '<div class="move-page-empty">Không tìm thấy trang nào</div>';
+    return;
+  }
+  pages.forEach((p) => {
+    const item = document.createElement("div");
+    item.className = "move-page-item";
+    item.textContent = `${p.icon || "📄"} ${p.title || "Không có tiêu đề"}`;
+    item.addEventListener("click", () => moveBlockToPage(p.id));
+    movePageList.appendChild(item);
+  });
+}
+
+async function moveBlockToPage(targetPageId) {
+  if (!detailContext) return;
+  const { pageId: sourcePageId, blockId } = detailContext;
+  const snap = await getDocs(blocksCol(sourcePageId));
+  const blockDoc = snap.docs.find((d) => d.id === blockId);
+  if (!blockDoc) return;
+  const block = blockDoc.data();
+
+  const targetSnap = await getDocs(blocksCol(targetPageId));
+  const { order, createdAt, ...rest } = block;
+  await addDoc(blocksCol(targetPageId), { ...rest, order: targetSnap.size, createdAt: serverTimestamp() });
+  await deleteDoc(blockRef(sourcePageId, blockId));
+
+  if (block.type === "todo") {
+    await updateDoc(doc(db, "users", currentUser.uid, "pages", sourcePageId), {
+      todoTotalCount: increment(-1), todoOpenCount: increment(block.checked ? 0 : -1)
+    });
+    await updateDoc(doc(db, "users", currentUser.uid, "pages", targetPageId), {
+      todoTotalCount: increment(1), todoOpenCount: increment(block.checked ? 0 : 1)
+    });
+  }
+  movePagePicker.classList.add("hidden");
+  showToast("Đã di chuyển thẻ sang trang khác");
+  closeDetailModal();
+}
 detailModal.addEventListener("click", (e) => { if (e.target === detailModal) closeDetailModal(); });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !detailModal.classList.contains("hidden")) closeDetailModal();
@@ -1633,6 +1738,7 @@ function renderDetailLinks(links) {
 }
 
 detailDeleteBtn.addEventListener("click", async () => {
+  detailMenu.classList.add("hidden");
   if (!detailContext) return;
   const ok = await showConfirm("Xóa thẻ này?", "Thẻ sẽ được chuyển vào Thùng rác, có thể khôi phục trong 30 ngày.", { danger: true, confirmText: "Xóa thẻ" });
   if (!ok) return;
