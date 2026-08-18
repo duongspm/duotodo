@@ -2396,10 +2396,13 @@ button {
   letter-spacing: .03em;
   text-transform: uppercase;
   color: var(--text-secondary);
-  margin-bottom: 8px;
+  padding-bottom: 8px;
   display: flex;
   align-items: center;
   gap: 6px;
+  position: sticky;
+  top: 0;
+  background: #fff;
 }
 .today-group-label.overdue {
   color: var(--danger);
