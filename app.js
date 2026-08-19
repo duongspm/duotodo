@@ -97,6 +97,7 @@ const blocksContainer = $("blocksContainer");
 const addBlockBtn = $("addBlockBtn");
 const addBlockMenu = $("addBlockMenu");
 const addBlockWrap = $("addBlockWrap");
+const blockSummaryBar = $("blockSummaryBar");
 const imageFileInput = $("imageFileInput");
 const toastEl = $("toast");
 const confirmModal = $("confirmModal");
@@ -795,6 +796,7 @@ function subscribeToBlocks(pageId) {
   if (unsubBlocks) unsubBlocks();
   blockElements.clear();
   blocksContainer.innerHTML = ""; // xóa DOM block của trang cũ, tránh bị lặp khi chuyển trang
+  // blockSummaryBar.classList.add("hidden");
   blocksViewWasGrouped = false;
   let firstLoad = true;
   const q = query(blocksCol(pageId), orderBy("order", "asc"));
@@ -807,6 +809,7 @@ function subscribeToBlocks(pageId) {
     const blocks = snap.docs.map((d) => ({ id: d.id, ...d.data() })).filter((b) => !b.deleted);
     latestBlocks = blocks;
     renderBlocksView(blocks);
+    renderBlockSummary(blocks);
     // Tự vá field "uid" / "deleted" cho block cũ tạo trước khi có các field này
     snap.docs.forEach((d) => {
       const data = d.data();
@@ -822,6 +825,49 @@ function subscribeToBlocks(pageId) {
     showToast("Lỗi tải nội dung trang");
   });
 }
+
+const BLOCK_SUMMARY_ORDER = ["heading", "text", "image", "link"];
+const BLOCK_SUMMARY_LABELS = { heading: "tiêu đề", text: "văn bản", image: "hình ảnh", link: "liên kết" };
+
+function renderBlockSummary(blocks) {
+  if (!blocks.length) {
+    blockSummaryBar.classList.add("hidden");
+    blockSummaryBar.innerHTML = "";
+    return;
+  }
+  const counts = { heading: 0, todo: 0, text: 0, image: 0, link: 0 };
+  let todoDone = 0, todoTotal = 0;
+  blocks.forEach((b) => {
+    if (counts[b.type] !== undefined) counts[b.type]++;
+    if (b.type === "todo") {
+      todoTotal++;
+      if (b.checked) todoDone++;
+    }
+  });
+
+  blockSummaryBar.innerHTML = "";
+  blockSummaryBar.classList.remove("hidden");
+
+  if (todoTotal > 0) {
+    const chip = document.createElement("span");
+    chip.className = "block-summary-chip block-summary-chip-todo";
+    chip.appendChild(iconEl("todo"));
+    chip.append(` ${todoDone}/${todoTotal} hoàn thành`);
+    chip.title = `${todoDone} trong tổng số ${todoTotal} việc cần làm đã xong`;
+    blockSummaryBar.appendChild(chip);
+  }
+
+  BLOCK_SUMMARY_ORDER.forEach((type) => {
+    if (!counts[type]) return;
+    const chip = document.createElement("span");
+    chip.className = "block-summary-chip";
+    chip.appendChild(iconEl(type));
+    chip.append(` ${counts[type]} ${BLOCK_SUMMARY_LABELS[type]}`);
+    chip.title = `${counts[type]} khối ${BLOCK_SUMMARY_LABELS[type]}`;
+    blockSummaryBar.appendChild(chip);
+  });
+}
+
 
 /* ---------------- Blocks: render ---------------- */
 let draggedBlockId = null;
@@ -3098,6 +3144,7 @@ function renderBlocksGrouped(groups) {
 
   blockElements.clear();
   blocksContainer.innerHTML = "";
+  // blockSummaryBar.classList.add("hidden");
   blocksViewWasGrouped = true;
   const flatOrder = groups.flatMap((g) => g.items);
   groups.forEach((g) => {

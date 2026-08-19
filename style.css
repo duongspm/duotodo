@@ -1264,8 +1264,13 @@ button {
   letter-spacing: .03em; text-transform: uppercase;
   color: var(--text-tertiary);
   padding: 14px 4px 6px;
+
+  position: sticky;
+  top: -13px;
+  left: 0;
+  background: var(--bg);
+  z-index: 10;
 }
-.block-group-label:first-child{ padding-top: 0; }
 
 @media (max-width: 720px){
   .page-action-btn span, .page-action-btn{ padding: 6px; }
@@ -1309,7 +1314,7 @@ button {
    (renderBlocks dựa vào chỉ số idx để tái sử dụng/định vị đúng phần tử). */
 .block-insert-zone{
   position: absolute;
-  left: 0; right: 0; top: -9px;
+  left: 0; right: 0; top: -14px;
   height: 16px;
   display: flex;
   align-items: center;
@@ -1319,14 +1324,15 @@ button {
   content: "";
   position: absolute;
   left: 0; right: 0; top: 50%;
-  height: 1px;
-  background: var(--accent);
+  height: 2px;
+  border-top: 2px dashed var(--accent);
+  /* background: var(--accent); */
   opacity: 0;
   transform: scaleX(0);
   transition: opacity .12s ease, transform .12s ease;
   transform-origin: center;
 }
-.block-insert-zone:hover::before{ opacity: .35; transform: scaleX(1); }
+.block-insert-zone:hover::before{ opacity: .5; transform: scaleX(1); }
 .block-insert-btn{
   position: absolute;
   left: 50%; top: 50%;
@@ -1341,6 +1347,7 @@ button {
   pointer-events: none;
   transition: opacity .12s ease, transform .12s ease;
   box-shadow: var(--shadow-sm);
+  z-index: 5;
 }
 .block-insert-btn svg{ width: 13px; height: 13px; }
 .block-insert-zone:hover .block-insert-btn{
@@ -1670,6 +1677,52 @@ button {
   flex-shrink: 0;
   padding: 10px 0 18px;
   border-top: 1px solid var(--border);
+}
+.add-block-wrap-row{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.block-summary-bar{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.block-summary-chip{
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 9px 4px 7px;
+  white-space: nowrap;
+}
+.block-summary-chip svg{ width: 12px; height: 12px; flex-shrink: 0; }
+.block-summary-chip-todo{
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: transparent;
+  font-weight: 600;
+}
+.block-summary-chip > span{display: flex;
+justify-content: center;
+align-items: center; margin-top: -0.25em;}
+@media (max-width: 640px){
+  .add-block-wrap-row{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .block-summary-bar{
+    justify-content: flex-start;
+    padding-top: 2px;
+  }
 }
 .add-block-btn {
   border: none;
@@ -2330,7 +2383,7 @@ button {
   position: sticky;
   top: 0;
   left: 0;
-  background: #fff;
+  background: var(--bg);
   z-index: 2;
 }
 .today-calendar-grid{
@@ -2406,7 +2459,7 @@ button {
   gap: 6px;
   position: sticky;
   top: 0;
-  background: #fff;
+  background: var(--bg);
 }
 .today-group-label.overdue {
   color: var(--danger);
@@ -2522,7 +2575,7 @@ button {
   position: sticky;
   top: 0;
   left: 0;
-  background: #fff;
+  background: var(--bg);
   box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 12px;
 }
 .trash-item{
