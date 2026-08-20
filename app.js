@@ -951,12 +951,11 @@ function buildInsertZone(prevBlock, nextBlock) {
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
-    openAddBlockMenuAt(zone, prevBlock, nextBlock);
+    openAddBlockMenuAt(btn, prevBlock, nextBlock); // dùng đúng nút vừa bấm làm mốc, không dùng cả dải zone rộng
   });
   zone.appendChild(btn);
   return zone;
 }
-
 function buildBlockEl(block, allBlocks) {
   const row = document.createElement("div");
   row.className = "block";
@@ -1923,7 +1922,7 @@ function positionAddBlockMenu(anchorEl) {
   document.body.appendChild(addBlockMenu);
   const rect = anchorEl.getBoundingClientRect();
   const menuWidth = 200;
-  const menuHeightEstimate = 230;
+  const menuHeightEstimate = 190;
 
   let left = rect.left;
   if (left + menuWidth > window.innerWidth - 12) left = window.innerWidth - menuWidth - 12;
